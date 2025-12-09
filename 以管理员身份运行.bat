@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 :: 以管理员身份运行应用程序
 :: 这样可以获得窗口置顶的权限
 
@@ -24,5 +25,5 @@ if %errorLevel% == 0 (
     pause
     
     :: 请求管理员权限并重新运行
-    powershell -Command "Start-Process cmd -ArgumentList '/c cd /d %CD% && npm run dev && pause' -Verb RunAs"
+    powershell -Command "Start-Process cmd -ArgumentList '/c chcp 65001 >nul & cd /d %CD% && npm run dev && pause' -Verb RunAs"
 )

@@ -338,8 +338,395 @@ npm run dev
 
 ---
 
+### Issue #8: 脚本快捷键监听逻辑重构
+**需求**:
+- 不再一直监听快捷键,改为用户主动开始监听
+- 添加"脚本运行模式"状态机
+- 进入脚本运行模式后只监听停止快捷键
+- 按停止快捷键后退出脚本运行模式并取消所有监听
+
+**实现方案**:
+
+**1. 状态机设计**:
+```
+[初始状态] 
+    ↓ 点击"开始监听"
+[脚本运行模式] - 监听停止快捷键
+    ↓ 按停止快捷键
+[初始状态] - 取消所有监听
+```
+
+**2. 前端改进 (src/store/gameStore.ts)**:
+- 添加 `isScriptMode` 状态,表示是否处于脚本运行模式
+- 添加 `enterScriptMode()` 方法:进入脚本运行模式,注册停止快捷键
+- 添加 `exitScriptMode()` 方法:退出脚本运行模式,注销所有快捷键
+
+**3. UI改进 (src/App.vue)**:
+- 移除自动监听快捷键的逻辑
+- 添加"开始监听"按钮:点击后进入脚本运行模式
+- 添加"停止监听"按钮:点击后退出脚本运行模式
+- 显示当前状态标签和提示信息
+- 只在脚本运行模式下处理停止快捷键事件
+
+**4. Electron主进程改进 (electron/main.ts)**:
+- 移除启动时自动注册快捷键的逻辑
+- 移除保存配置时自动注册快捷键的逻辑
+- 添加 `registerStopHotkey()` 方法:只注册停止快捷键
+- 添加 `unregisterAllHotkeys()` 方法:注销所有快捷键
+- 添加IPC处理器:
+  - `enter-script-mode`: 注册停止快捷键
+  - `exit-script-mode`: 注销所有快捷键
+
+**5. Preload改进 (electron/preload.ts)**:
+- 添加 `enterScriptMode(stopKey)` 方法
+- 添加 `exitScriptMode()` 方法
+
+**用户体验改进**:
+- 用户可以完全控制何时开始监听快捷键
+- 脚本运行模式有清晰的视觉反馈(标签、提示)
+- 不再有"一直监听"带来的意外触发问题
+- 状态机逻辑清晰,易于理解和维护
+
+**使用流程**:
+1. 配置并保存快捷键
+2. 点击"开始监听"按钮
+3. 应用进入脚本运行模式,自动检测并连接游戏窗口
+4. 此时可以按停止快捷键来停止脚本
+5. 按下停止快捷键后,自动退出脚本运行模式
+
+---
+
+### Issue #9: 停止脚本时取消置顶和程序退出清理
+**需求**:
+1. 当监听到停止脚本时,应该自动取消窗口置顶功能
+2. 当程序退出时,应该清理所有残留(取消置顶、注销快捷键、停止Python进程)
+3. 窗口缺少标准的最小化、最大化、关闭按钮
+4. 开发环境打开控制台,生产环境不打开控制台
+
+**问题分析**:
+1. 之前停止脚本时只是退出脚本运行模式,没有取消窗口置顶
+2. 程序退出时没有完整的清理流程,可能导致窗口保持置顶状态
+3. 使用了 `titleBarStyle: 'hidden'` 导致窗口没有标准控制按钮
+4. 生产环境也打开了开发者控制台,不够专业
+
+**解决方案**:
+
+**1. 停止脚本时取消置顶 (src/App.vue)**:
+- 在 `handleStopListening()` 中添加取消置顶逻辑
+- 在 `handleStopScriptByHotkey()` 中添加取消置顶逻辑
+- 确保用户停止脚本时,窗口恢复为普通状态
+
+**2. 程序退出时完整清理 (electron/main.ts)**:
+- 在 `app.on('window-all-closed')` 中添加清理流程:
+  1. 注销所有快捷键
+  2. 发送取消置顶命令到Python
+  3. 等待200ms让Python处理命令
+  4. 终止Python进程
+  5. 退出应用
+- 在 `app.on('will-quit')` 中添加清理流程:
+  1. 注销所有快捷键
+  2. 发送取消置顶命令到Python
+  3. 使用 `event.preventDefault()` 阻止立即退出
+  4. 等待200ms后再退出
+
+**3. 恢复标准窗口控制按钮 (electron/main.ts)**:
+- 移除 `titleBarStyle: 'hidden'` 配置
+- 窗口将显示标准的Windows标题栏
+- 用户可以看到最小化、最大化、关闭按钮
+
+**4. 区分开发和生产环境 (electron/main.ts)**:
+- 开发模式 (`!app.isPackaged`):
+  - 加载 Vite 开发服务器
+  - 打开开发者控制台 (`openDevTools()`)
+- 生产模式 (`app.isPackaged`):
+  - 加载打包后的文件
+  - 不打开开发者控制台
+  - 程序看起来像正经的exe应用
+
+**用户体验改进**:
+- 停止脚本时窗口自动恢复普通状态,不会一直置顶
+- 程序退出时完全清理,不留任何残留
+- 窗口有标准的控制按钮,操作更直观
+- 生产环境不显示控制台,更专业
+
+**清理流程时序**:
+```
+用户点击关闭按钮
+    ↓
+window-all-closed 事件触发
+    ↓
+1. 注销所有快捷键
+2. 发送取消置顶命令到Python
+3. 等待200ms
+4. 终止Python进程
+5. 退出应用
+```
+
+---
+
+### Issue #10: 移除Electron默认菜单栏和优化管理员权限提示
+**需求**:
+1. 移除窗口顶部的Electron默认菜单栏(File、Edit、View等)
+2. 取消启动时的管理员权限弹窗提示,因为用户会直接设置exe以管理员身份运行
+
+**问题分析**:
+1. Electron默认会显示菜单栏,包含File、Edit、View等开发工具相关的菜单,不够专业
+2. 之前的代码会在启动时检测管理员权限,如果没有权限就弹窗提示并要求重启,这对于已经设置了"以管理员身份运行"的用户来说是多余的
+
+**解决方案**:
+
+**1. 移除默认菜单栏 (electron/main.ts)**:
+```typescript
+function createWindow() {
+  win = new BrowserWindow({...})
+  
+  // 移除Electron默认菜单栏(File, Edit, View等)
+  // 让程序看起来更专业,不显示开发工具相关的菜单
+  win.setMenu(null)
+  
+  ...
+}
+```
+
+**关键方法**: `win.setMenu(null)` - 将菜单设置为null,完全移除菜单栏
+
+**2. 优化管理员权限检测 (electron/main.ts)**:
+
+**修改前**:
+```typescript
+if (!isAdmin()) {
+  requestAdminAndRestart()  // 弹窗提示并要求重启
+  return
+}
+```
+
+**修改后**:
+```typescript
+if (!isAdmin()) {
+  // 只记录警告日志,不弹窗
+  console.warn('⚠ Application is not running with administrator privileges')
+  console.warn('⚠ Some features may not work properly')
+  console.warn('⚠ Please run as administrator for full functionality')
+  // 让程序继续运行
+} else {
+  console.log('✓ Running with administrator privileges')
+}
+```
+
+**用户如何设置管理员权限**:
+
+**方法1: 设置exe文件属性 (推荐)**
+1. 右键点击 `DNA Automator.exe`
+2. 选择"属性"
+3. 切换到"兼容性"选项卡
+4. 勾选"以管理员身份运行此程序"
+5. 点击"确定"
+
+**方法2: 使用批处理文件**
+- 双击运行 `以管理员身份运行.bat`
+- 批处理文件会自动请求管理员权限并启动应用
+
+**用户体验改进**:
+- 窗口更简洁,没有多余的菜单栏
+- 不会在启动时弹出烦人的权限提示
+- 用户可以自己决定是否以管理员身份运行
+- 如果没有管理员权限,程序仍然可以运行(只是部分功能可能受限)
+
+**开发者提示**:
+- 开发模式下仍然可以通过 `Ctrl+Shift+I` 打开开发者工具
+- 菜单栏被移除不影响开发调试
+
+---
+
+### Issue #11: ElMessage消息提示封装
+**需求**:
+- 封装Element Plus的ElMessage组件,提供统一的消息提示接口
+- 方便后续统一管理和扩展消息提示功能
+
+**实现方案**:
+
+**1. 创建消息封装工具 (src/utils/message.ts)**:
+```typescript
+// 封装了ElMessage的四种消息类型
+message.success('操作成功')  // 成功消息
+message.error('操作失败')    // 错误消息
+message.warning('警告信息')  // 警告消息
+message.info('提示信息')     // 信息消息
+```
+
+**2. 替换所有ElMessage调用 (src/App.vue)**:
+- 移除 `import { ElMessage } from 'element-plus'`
+- 添加 `import { message } from '@/utils/message'`
+- 将所有 `ElMessage.xxx()` 替换为 `message.xxx()`
+- 共替换了约25处调用
+
+**封装优势**:
+1. **统一管理**: 所有消息提示都通过一个入口,方便统一配置
+2. **易于扩展**: 可以在封装层添加全局配置(如持续时间、位置等)
+3. **类型安全**: 提供完整的TypeScript类型定义
+4. **简化调用**: 保持与ElMessage相同的API,无需修改使用习惯
+
+**使用示例**:
+```typescript
+// 基础用法
+message.success('保存成功')
+
+// 带配置项
+message.error('操作失败', { 
+  duration: 5000,
+  showClose: true 
+})
+
+// 通用方法
+message.show('warning', '警告信息')
+```
+
+**代码质量**:
+- 所有代码都有详细的JSDoc注释
+- 通过TypeScript类型检查,无语法错误
+- 使用单例模式,避免重复实例化
+
+---
+
+### Issue #12: bat脚本乱码和服务器类型配置持久化
+**问题描述**:
+1. `以管理员身份运行.bat` 脚本显示中文乱码,虽然不影响运行但不美观
+2. 服务器类型(国服/国际服)选择后没有保存到配置文件,重启应用后丢失
+
+**根本原因**:
+1. Windows的bat文件默认使用GBK编码,但文件可能是UTF-8编码导致中文显示乱码
+2. `gameStore.ts` 中定义了 `serverType` 状态,但在 `loadConfig()` 和 `saveConfig()` 中没有处理这个字段
+3. TypeScript类型定义中的配置对象没有包含 `serverType` 字段
+
+**解决方案**:
+
+**1. 修复bat脚本编码 (以管理员身份运行.bat)**:
+```bat
+@echo off
+chcp 65001 >nul  # 设置控制台编码为UTF-8
+:: 以管理员身份运行应用程序
+...
+```
+
+**关键改进**:
+- 在脚本开头添加 `chcp 65001 >nul` 命令
+- `chcp 65001` 将控制台代码页设置为UTF-8编码
+- `>nul` 隐藏命令输出,保持界面简洁
+- 在PowerShell启动命令中也添加编码设置
+
+**2. 服务器类型配置持久化 (src/store/gameStore.ts)**:
+
+**loadConfig() 改进**:
+```typescript
+async function loadConfig() {
+  try {
+    const config = await window.electronAPI.loadConfig()
+    startHotkey.value = config.hotkeys.start || ''
+    stopHotkey.value = config.hotkeys.stop || ''
+    serverType.value = config.serverType || 'cn'  // 加载服务器类型
+    console.log('Config loaded:', config)
+  } catch (error) {
+    console.error('Failed to load config:', error)
+  }
+}
+```
+
+**saveConfig() 改进**:
+```typescript
+async function saveConfig() {
+  try {
+    const config = {
+      hotkeys: {
+        start: startHotkey.value,
+        stop: stopHotkey.value
+      },
+      serverType: serverType.value  // 保存服务器类型
+    }
+    const success = await window.electronAPI.saveConfig(config)
+    ...
+  }
+}
+```
+
+**3. 更新TypeScript类型定义 (src/electron-env.d.ts)**:
+```typescript
+// 配置相关方法
+saveConfig: (config: { 
+  hotkeys: { start: string; stop: string }; 
+  serverType?: 'cn' | 'global'  // 添加服务器类型字段
+}) => Promise<boolean>
+
+loadConfig: () => Promise<{ 
+  hotkeys: { start: string; stop: string }; 
+  serverType?: 'cn' | 'global'  // 添加服务器类型字段
+}>
+```
+
+**4. 自动保存服务器类型 (src/App.vue)**:
+```typescript
+// 监听服务器类型变化,自动保存配置
+watch(() => store.serverType, async (newType) => {
+  console.log('Server type changed to:', newType)
+  await store.saveConfig()
+  message.success(`服务器类型已切换为: ${newType === 'cn' ? '国服' : '国际服'}`)
+})
+```
+
+**用户体验改进**:
+- bat脚本现在正确显示中文,界面更美观
+- 服务器类型选择后自动保存,重启应用后保持选择
+- 切换服务器类型时显示友好的提示消息
+- 配置文件完整保存所有用户设置
+
+**配置文件结构**:
+```json
+{
+  "hotkeys": {
+    "start": "CommandOrControl+F1",
+    "stop": "CommandOrControl+F2"
+  },
+  "serverType": "cn"
+}
+```
+
+**测试验证**:
+- ✅ TypeScript类型检查通过,无编译错误
+- ✅ 服务器类型切换时自动保存
+- ✅ 重启应用后服务器类型保持不变
+- ✅ bat脚本中文显示正常
+
+---
+
+## 📐 代码质量保证
+
+### 开发规范
+- 详细的开发规范请查看 [项目规范.md](./项目规范.md)
+- 代码提交前请使用 [代码质量检查清单.md](./代码质量检查清单.md) 进行自查
+
+### 代码审查要点
+1. **类型安全**: 所有TypeScript代码必须通过类型检查
+2. **错误处理**: 所有异步操作和可能失败的操作必须有错误处理
+3. **日志完整**: 关键操作必须有日志记录
+4. **注释充分**: 复杂逻辑必须有注释说明
+5. **测试覆盖**: 新功能必须经过手动测试
+
+### 常见问题避免
+- ❌ 不要使用`any`类型
+- ❌ 不要忘记清理事件监听器
+- ❌ 不要硬编码配置值
+- ❌ 不要在主线程执行长时间任务
+- ❌ 不要忽略错误处理
+
+### 性能优化
+- 使用防抖/节流处理频繁触发的事件
+- 大型组件使用懒加载
+- 图像识别支持GPU加速(CUDA/OpenCL)
+- 缓存常用的模板图像
+
 ## 🎯 下一步计划 (Next Steps)
-1. 测试快捷键自动检测和置顶功能
-2. 开发 Python 端的图像识别模块
-3. 设计脚本配置系统
-4. 实现自动化操作流程
+1. ✅ 完成代码review和规范文档
+2. 开发 Python 端的图像识别脚本逻辑
+3. 实现脚本执行引擎(目前只有状态管理,还没有实际执行)
+4. 添加更多脚本类型(目前只有火10)
+5. 优化窗口捕获性能
+6. 添加脚本执行统计和报告功能

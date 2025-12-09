@@ -104,51 +104,32 @@ function saveConfig(config) {
         return false;
     }
 }
-// 注册全局快捷键
-function registerHotkeys(config) {
+// 注册停止快捷键 - 只在脚本运行模式下使用
+function registerStopHotkey(stopKey) {
     // 先注销所有快捷键
     electron_1.globalShortcut.unregisterAll();
-    const results = {
-        start: { success: false, key: config.hotkeys.start },
-        stop: { success: false, key: config.hotkeys.stop }
-    };
-    // 注册开始脚本快捷键
-    if (config.hotkeys.start) {
-        const registered = electron_1.globalShortcut.register(config.hotkeys.start, () => {
-            console.log('Start hotkey pressed:', config.hotkeys.start);
-            if (win) {
-                win.webContents.send('hotkey-triggered', 'start');
-            }
-        });
-        results.start.success = registered;
-        if (registered) {
-            console.log('Start hotkey registered:', config.hotkeys.start);
-        }
-        else {
-            console.error('Failed to register start hotkey:', config.hotkeys.start);
-        }
+    if (!stopKey) {
+        console.warn('Stop hotkey is empty, cannot register');
+        return false;
     }
-    // 注册停止脚本快捷键
-    if (config.hotkeys.stop) {
-        const registered = electron_1.globalShortcut.register(config.hotkeys.stop, () => {
-            console.log('Stop hotkey pressed:', config.hotkeys.stop);
-            if (win) {
-                win.webContents.send('hotkey-triggered', 'stop');
-            }
-        });
-        results.stop.success = registered;
-        if (registered) {
-            console.log('Stop hotkey registered:', config.hotkeys.stop);
+    const registered = electron_1.globalShortcut.register(stopKey, () => {
+        console.log('Stop hotkey pressed:', stopKey);
+        if (win) {
+            win.webContents.send('hotkey-triggered', 'stop');
         }
-        else {
-            console.error('Failed to register stop hotkey:', config.hotkeys.stop);
-        }
+    });
+    if (registered) {
+        console.log('Stop hotkey registered:', stopKey);
     }
-    // 通知前端注册结果
-    if (win) {
-        win.webContents.send('hotkey-registration-result', results);
+    else {
+        console.error('Failed to register stop hotkey:', stopKey);
     }
-    return results;
+    return registered;
+}
+// 注销所有快捷键
+function unregisterAllHotkeys() {
+    electron_1.globalShortcut.unregisterAll();
+    console.log('All hotkeys unregistered');
 }
 function createWindow() {
     const preloadPath = (0, path_1.join)(__dirname, 'preload.js');
@@ -161,21 +142,45 @@ function createWindow() {
             contextIsolation: true,
             sandbox: false
         },
-        titleBarStyle: 'hidden',
+        // 移除 titleBarStyle: 'hidden',让窗口显示标准的标题栏和控制按钮
+        // 这样用户就可以看到最小化、最大化、关闭按钮
     });
-    // 开发模式加载 Vite 开发服务器,生产模式加载打包后的文件
+    // 移除Electron默认菜单栏(File, Edit, View等)
+    // 让程序看起来更专业,不显示开发工具相关的菜单
+    win.setMenu(null);
+    // 开发模式加载 Vite 开发服务器并打开控制台,生产模式加载打包后的文件且不打开控制台
     if (!electron_1.app.isPackaged) {
         win.loadURL('http://localhost:5173');
-        win.webContents.openDevTools();
+        win.webContents.openDevTools(); // 只在开发模式打开控制台
     }
     else {
         win.loadURL(`file://${(0, path_1.join)(__dirname, '../dist/index.html')}`);
+        // 生产模式不打开控制台,让程序看起来像正经的exe程序
     }
 }
 electron_1.app.on('window-all-closed', () => {
-    killPythonEngine();
-    if (process.platform !== 'darwin')
-        electron_1.app.quit();
+    console.log('All windows closed, cleaning up...');
+    // 1. 注销所有快捷键
+    unregisterAllHotkeys();
+    // 2. 发送取消置顶命令到Python(如果Python进程还在运行)
+    if (pyProc && pyProc.stdin) {
+        try {
+            const command = JSON.stringify({ action: 'deactivate_topmost' }) + '\n';
+            pyProc.stdin.write(command);
+            console.log('Sent deactivate_topmost command to Python');
+        }
+        catch (error) {
+            console.error('Failed to send deactivate_topmost command:', error);
+        }
+    }
+    // 3. 等待一小段时间让Python处理命令
+    setTimeout(() => {
+        // 4. 终止Python进程
+        killPythonEngine();
+        // 5. 退出应用
+        if (process.platform !== 'darwin')
+            electron_1.app.quit();
+    }, 200); // 等待200ms
 });
 // --- Python Engine Management ---
 const child_process_2 = require("child_process");
@@ -284,32 +289,46 @@ electron_2.ipcMain.handle('ping', async () => {
 // 处理保存配置请求
 electron_2.ipcMain.handle('save-config', async (event, config) => {
     const success = saveConfig(config);
-    if (success) {
-        // 重新注册快捷键
-        registerHotkeys(config);
-    }
+    // 注意: 保存配置时不再自动注册快捷键
+    // 快捷键只在用户点击"开始监听"时才注册
     return success;
 });
 // 处理加载配置请求
 electron_2.ipcMain.handle('load-config', async () => {
     return loadConfig();
 });
+// 处理进入脚本运行模式 - 注册停止快捷键
+electron_2.ipcMain.handle('enter-script-mode', async (event, stopKey) => {
+    console.log('Entering script mode, registering stop hotkey:', stopKey);
+    const success = registerStopHotkey(stopKey);
+    return success;
+});
+// 处理退出脚本运行模式 - 注销所有快捷键
+electron_2.ipcMain.handle('exit-script-mode', async () => {
+    console.log('Exiting script mode, unregistering all hotkeys');
+    unregisterAllHotkeys();
+    return true;
+});
 // 应用启动
 electron_1.app.whenReady().then(() => {
     console.log('App is ready, checking admin privileges...');
-    // 检查管理员权限
+    // 检查管理员权限 - 只记录日志,不弹窗提示
+    // 用户应该通过右键exe文件 -> 属性 -> 兼容性 -> 以管理员身份运行此程序
+    // 或者使用"以管理员身份运行.bat"来启动
     if (!isAdmin()) {
-        console.warn('Application is not running with administrator privileges');
-        requestAdminAndRestart();
-        return;
+        console.warn('⚠ Application is not running with administrator privileges');
+        console.warn('⚠ Some features may not work properly (window activation, hotkeys, etc.)');
+        console.warn('⚠ Please run as administrator for full functionality');
+        // 不再弹窗,让程序继续运行
     }
-    console.log('Running with administrator privileges ✓');
+    else {
+        console.log('✓ Running with administrator privileges');
+    }
     console.log('Creating window...');
     createWindow();
     startPythonEngine();
-    // 加载配置并注册快捷键
-    const config = loadConfig();
-    registerHotkeys(config);
+    // 注意: 不再在启动时自动注册快捷键
+    // 快捷键只在用户点击"开始监听"时才注册
     electron_1.app.on('activate', () => {
         // 在 macOS 上,当点击 dock 图标且没有其他窗口打开时,重新创建窗口
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {
@@ -317,7 +336,34 @@ electron_1.app.whenReady().then(() => {
         }
     });
 });
-// 应用退出时注销所有快捷键
-electron_1.app.on('will-quit', () => {
+// 应用退出时清理所有资源
+electron_1.app.on('will-quit', (event) => {
+    console.log('Application will quit, performing cleanup...');
+    // 1. 注销所有快捷键
     electron_1.globalShortcut.unregisterAll();
+    console.log('All hotkeys unregistered');
+    // 2. 如果Python进程还在运行,发送取消置顶命令
+    if (pyProc && pyProc.stdin) {
+        try {
+            const command = JSON.stringify({ action: 'deactivate_topmost' }) + '\n';
+            pyProc.stdin.write(command);
+            console.log('Sent deactivate_topmost command to Python');
+            // 阻止立即退出,等待Python处理命令
+            event.preventDefault();
+            // 等待一小段时间后再退出
+            setTimeout(() => {
+                killPythonEngine();
+                console.log('Python engine killed');
+                electron_1.app.exit(0);
+            }, 200);
+        }
+        catch (error) {
+            console.error('Failed to send cleanup command:', error);
+            killPythonEngine();
+        }
+    }
+    else {
+        // Python进程已经停止,直接清理
+        killPythonEngine();
+    }
 });

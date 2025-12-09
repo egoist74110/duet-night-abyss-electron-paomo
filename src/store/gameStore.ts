@@ -12,6 +12,9 @@ export const useGameStore = defineStore('game', () => {
   // 服务器类型配置
   const serverType = ref<'cn' | 'global'>('cn') // 默认国服
 
+  // 脚本运行模式状态 - 表示是否正在监听快捷键并准备运行脚本
+  const isScriptMode = ref(false)
+
   // 计算属性:是否已配置快捷键
   const isHotkeyConfigured = computed(() => {
     return startHotkey.value.trim() !== '' && stopHotkey.value.trim() !== ''
@@ -35,6 +38,7 @@ export const useGameStore = defineStore('game', () => {
       const config = await window.electronAPI.loadConfig()
       startHotkey.value = config.hotkeys.start || ''
       stopHotkey.value = config.hotkeys.stop || ''
+      serverType.value = config.serverType || 'cn' // 加载服务器类型配置
       console.log('Config loaded:', config)
     } catch (error) {
       console.error('Failed to load config:', error)
@@ -48,7 +52,8 @@ export const useGameStore = defineStore('game', () => {
         hotkeys: {
           start: startHotkey.value,
           stop: stopHotkey.value
-        }
+        },
+        serverType: serverType.value // 保存服务器类型配置
       }
       const success = await window.electronAPI.saveConfig(config)
       if (success) {
@@ -140,6 +145,38 @@ export const useGameStore = defineStore('game', () => {
     scriptConfigs.value[scriptId] = config
   }
 
+  // 进入脚本运行模式 - 开始监听停止快捷键
+  async function enterScriptMode() {
+    if (!isHotkeyConfigured.value) {
+      console.warn('Hotkeys not configured')
+      return false
+    }
+    
+    // 通知Electron主进程注册停止快捷键
+    const success = await window.electronAPI.enterScriptMode(stopHotkey.value)
+    
+    if (success) {
+      isScriptMode.value = true
+      console.log('Entered script mode - now listening for stop hotkey:', stopHotkey.value)
+      return true
+    } else {
+      console.error('Failed to register stop hotkey')
+      return false
+    }
+  }
+
+  // 退出脚本运行模式 - 停止所有监听
+  async function exitScriptMode() {
+    // 通知Electron主进程注销所有快捷键
+    await window.electronAPI.exitScriptMode()
+    
+    isScriptMode.value = false
+    isRunning.value = false
+    console.log('Exited script mode - stopped all listeners')
+    
+    return true
+  }
+
   function ping() {
     window.electronAPI.sendToPython({ action: 'ping' })
   }
@@ -152,6 +189,7 @@ export const useGameStore = defineStore('game', () => {
     isHotkeyConfigured,
     serverType,
     serverKeyword,
+    isScriptMode,
     selectedScript,
     scriptConfigs,
     availableScripts,
@@ -162,6 +200,8 @@ export const useGameStore = defineStore('game', () => {
     toggleScript,
     startScript,
     stopScript,
+    enterScriptMode,
+    exitScriptMode,
     updateScriptConfig,
     ping
   }

@@ -18,6 +18,9 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     // 监听快捷键注册结果
     onHotkeyRegistrationResult: (callback) => {
         electron_1.ipcRenderer.on('hotkey-registration-result', (_event, results) => callback(results));
-    }
+    },
+    // 脚本运行模式相关方法
+    enterScriptMode: (stopKey) => electron_1.ipcRenderer.invoke('enter-script-mode', stopKey),
+    exitScriptMode: () => electron_1.ipcRenderer.invoke('exit-script-mode')
 });
 console.log('[Preload] electronAPI exposed');
