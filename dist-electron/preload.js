@@ -7,6 +7,13 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     sendToPython: (data) => electron_1.ipcRenderer.send('to-python', data),
     onPythonData: (callback) => {
         electron_1.ipcRenderer.on('python-data', (_event, value) => callback(value));
+    },
+    // 配置相关方法
+    saveConfig: (config) => electron_1.ipcRenderer.invoke('save-config', config),
+    loadConfig: () => electron_1.ipcRenderer.invoke('load-config'),
+    // 监听快捷键触发
+    onHotkeyTriggered: (callback) => {
+        electron_1.ipcRenderer.on('hotkey-triggered', (_event, action) => callback(action));
     }
 });
 console.log('[Preload] electronAPI exposed');

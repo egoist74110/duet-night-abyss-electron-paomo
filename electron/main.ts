@@ -1,10 +1,100 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, globalShortcut } from 'electron'
 import { join } from 'path'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 
 // 屏蔽安全警告
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true'
 
 let win: BrowserWindow | null = null
+
+// 配置文件路径
+const getConfigPath = () => {
+  const userDataPath = app.getPath('userData')
+  // 确保目录存在
+  if (!existsSync(userDataPath)) {
+    mkdirSync(userDataPath, { recursive: true })
+  }
+  return join(userDataPath, 'config.json')
+}
+
+// 配置接口定义
+interface AppConfig {
+  hotkeys: {
+    start: string
+    stop: string
+  }
+}
+
+// 默认配置
+const defaultConfig: AppConfig = {
+  hotkeys: {
+    start: '',
+    stop: ''
+  }
+}
+
+// 读取配置
+function loadConfig(): AppConfig {
+  try {
+    const configPath = getConfigPath()
+    if (existsSync(configPath)) {
+      const data = readFileSync(configPath, 'utf-8')
+      return JSON.parse(data)
+    }
+  } catch (error) {
+    console.error('Failed to load config:', error)
+  }
+  return defaultConfig
+}
+
+// 保存配置
+function saveConfig(config: AppConfig): boolean {
+  try {
+    const configPath = getConfigPath()
+    writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
+    console.log('Config saved to:', configPath)
+    return true
+  } catch (error) {
+    console.error('Failed to save config:', error)
+    return false
+  }
+}
+
+// 注册全局快捷键
+function registerHotkeys(config: AppConfig) {
+  // 先注销所有快捷键
+  globalShortcut.unregisterAll()
+
+  // 注册开始脚本快捷键
+  if (config.hotkeys.start) {
+    const registered = globalShortcut.register(config.hotkeys.start, () => {
+      console.log('Start hotkey pressed:', config.hotkeys.start)
+      if (win) {
+        win.webContents.send('hotkey-triggered', 'start')
+      }
+    })
+    if (registered) {
+      console.log('Start hotkey registered:', config.hotkeys.start)
+    } else {
+      console.error('Failed to register start hotkey:', config.hotkeys.start)
+    }
+  }
+
+  // 注册停止脚本快捷键
+  if (config.hotkeys.stop) {
+    const registered = globalShortcut.register(config.hotkeys.stop, () => {
+      console.log('Stop hotkey pressed:', config.hotkeys.stop)
+      if (win) {
+        win.webContents.send('hotkey-triggered', 'stop')
+      }
+    })
+    if (registered) {
+      console.log('Stop hotkey registered:', config.hotkeys.stop)
+    } else {
+      console.error('Failed to register stop hotkey:', config.hotkeys.stop)
+    }
+  }
+}
 
 function createWindow() {
   const preloadPath = join(__dirname, 'preload.js')
@@ -104,11 +194,30 @@ ipcMain.handle('ping', async () => {
   return 'pong from main'
 })
 
+// 处理保存配置请求
+ipcMain.handle('save-config', async (event, config: AppConfig) => {
+  const success = saveConfig(config)
+  if (success) {
+    // 重新注册快捷键
+    registerHotkeys(config)
+  }
+  return success
+})
+
+// 处理加载配置请求
+ipcMain.handle('load-config', async () => {
+  return loadConfig()
+})
+
 // 应用启动
 app.whenReady().then(() => {
   console.log('App is ready, creating window...')
   createWindow()
   startPythonEngine()
+  
+  // 加载配置并注册快捷键
+  const config = loadConfig()
+  registerHotkeys(config)
 
   app.on('activate', () => {
     // 在 macOS 上,当点击 dock 图标且没有其他窗口打开时,重新创建窗口
@@ -116,4 +225,9 @@ app.whenReady().then(() => {
       createWindow()
     }
   })
+})
+
+// 应用退出时注销所有快捷键
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
