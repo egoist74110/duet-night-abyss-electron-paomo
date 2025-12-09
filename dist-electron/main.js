@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.requestAdminAndRestart = requestAdminAndRestart;
 const electron_1 = require("electron");
 const path_1 = require("path");
 const fs_1 = require("fs");
@@ -23,6 +24,8 @@ function isAdmin() {
     return true;
 }
 // 请求管理员权限并重启应用
+// 注意: 此函数暂时未使用,因为我们改为让用户手动设置管理员权限
+// 保留此函数以备将来需要时使用
 function requestAdminAndRestart() {
     const options = {
         type: 'warning',
@@ -275,7 +278,7 @@ function killPythonEngine() {
 }
 // 监听渲染进程发送的消息转发给 Python
 const electron_2 = require("electron");
-electron_2.ipcMain.on('to-python', (event, arg) => {
+electron_2.ipcMain.on('to-python', (_event, arg) => {
     if (pyProc && pyProc.stdin) {
         const data = JSON.stringify(arg) + '\n';
         pyProc.stdin.write(data);
@@ -287,7 +290,7 @@ electron_2.ipcMain.handle('ping', async () => {
     return 'pong from main';
 });
 // 处理保存配置请求
-electron_2.ipcMain.handle('save-config', async (event, config) => {
+electron_2.ipcMain.handle('save-config', async (_event, config) => {
     const success = saveConfig(config);
     // 注意: 保存配置时不再自动注册快捷键
     // 快捷键只在用户点击"开始监听"时才注册
@@ -298,7 +301,7 @@ electron_2.ipcMain.handle('load-config', async () => {
     return loadConfig();
 });
 // 处理进入脚本运行模式 - 注册停止快捷键
-electron_2.ipcMain.handle('enter-script-mode', async (event, stopKey) => {
+electron_2.ipcMain.handle('enter-script-mode', async (_event, stopKey) => {
     console.log('Entering script mode, registering stop hotkey:', stopKey);
     const success = registerStopHotkey(stopKey);
     return success;
