@@ -3,8 +3,63 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path_1 = require("path");
 const fs_1 = require("fs");
+const child_process_1 = require("child_process");
 // 屏蔽安全警告
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
+// 检查是否以管理员权限运行
+function isAdmin() {
+    if (process.platform === 'win32') {
+        try {
+            // 在Windows上,尝试访问需要管理员权限的注册表项
+            const { execSync } = require('child_process');
+            execSync('net session', { stdio: 'ignore' });
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    // 其他平台暂不处理
+    return true;
+}
+// 请求管理员权限并重启应用
+function requestAdminAndRestart() {
+    const options = {
+        type: 'warning',
+        buttons: ['以管理员身份重启', '退出应用'],
+        defaultId: 0,
+        title: '需要管理员权限',
+        message: 'DNA Automator 需要管理员权限才能正常工作',
+        detail: '应用需要管理员权限来:\n' +
+            '• 置顶游戏窗口\n' +
+            '• 模拟鼠标和键盘操作\n' +
+            '• 注册全局快捷键\n\n' +
+            '点击"以管理员身份重启"将关闭当前应用并以管理员权限重新启动。'
+    };
+    electron_1.dialog.showMessageBoxSync(options);
+    if (options.buttons[0]) {
+        // 用户选择重启
+        const exePath = process.execPath;
+        const args = process.argv.slice(1);
+        if (process.platform === 'win32') {
+            // Windows: 使用PowerShell以管理员身份启动
+            const command = `Start-Process -FilePath "${exePath}" -ArgumentList "${args.join(' ')}" -Verb RunAs`;
+            (0, child_process_1.exec)(`powershell -Command "${command}"`, (error) => {
+                if (error) {
+                    console.error('Failed to restart as admin:', error);
+                }
+                electron_1.app.quit();
+            });
+        }
+        else {
+            electron_1.app.quit();
+        }
+    }
+    else {
+        // 用户选择退出
+        electron_1.app.quit();
+    }
+}
 let win = null;
 // 配置文件路径
 const getConfigPath = () => {
@@ -53,6 +108,10 @@ function saveConfig(config) {
 function registerHotkeys(config) {
     // 先注销所有快捷键
     electron_1.globalShortcut.unregisterAll();
+    const results = {
+        start: { success: false, key: config.hotkeys.start },
+        stop: { success: false, key: config.hotkeys.stop }
+    };
     // 注册开始脚本快捷键
     if (config.hotkeys.start) {
         const registered = electron_1.globalShortcut.register(config.hotkeys.start, () => {
@@ -61,6 +120,7 @@ function registerHotkeys(config) {
                 win.webContents.send('hotkey-triggered', 'start');
             }
         });
+        results.start.success = registered;
         if (registered) {
             console.log('Start hotkey registered:', config.hotkeys.start);
         }
@@ -76,6 +136,7 @@ function registerHotkeys(config) {
                 win.webContents.send('hotkey-triggered', 'stop');
             }
         });
+        results.stop.success = registered;
         if (registered) {
             console.log('Stop hotkey registered:', config.hotkeys.stop);
         }
@@ -83,6 +144,11 @@ function registerHotkeys(config) {
             console.error('Failed to register stop hotkey:', config.hotkeys.stop);
         }
     }
+    // 通知前端注册结果
+    if (win) {
+        win.webContents.send('hotkey-registration-result', results);
+    }
+    return results;
 }
 function createWindow() {
     const preloadPath = (0, path_1.join)(__dirname, 'preload.js');
@@ -112,45 +178,88 @@ electron_1.app.on('window-all-closed', () => {
         electron_1.app.quit();
 });
 // --- Python Engine Management ---
-const child_process_1 = require("child_process");
+const child_process_2 = require("child_process");
 let pyProc = null;
+let pythonOutputBuffer = ''; // 缓冲区用于处理不完整的JSON
 function startPythonEngine() {
-    const pythonPath = 'python3'; // 假设环境变量中有 python3，生产环境可能需要指向打包后的 python
+    // 优先使用嵌入式Python，如果不存在则使用系统Python
+    const embeddedPythonPath = (0, path_1.join)(__dirname, '../python/python.exe');
+    const systemPythonPath = 'python';
+    // 检查嵌入式Python是否存在
+    const fs = require('fs');
+    const pythonPath = fs.existsSync(embeddedPythonPath) ? embeddedPythonPath : systemPythonPath;
     // Fix: __dirname is dist-electron. We need to go up one level to root, then into py_engine.
     const scriptPath = (0, path_1.join)(__dirname, '../py_engine/main.py');
+    console.log(`Using Python: ${pythonPath}`);
     console.log(`Starting Python engine at: ${scriptPath}`);
-    pyProc = (0, child_process_1.spawn)(pythonPath, [scriptPath]);
+    // 重置缓冲区
+    pythonOutputBuffer = '';
+    pyProc = (0, child_process_2.spawn)(pythonPath, [scriptPath]);
     pyProc.stdout?.on('data', (data) => {
         const str = data.toString();
         console.log('[Python Raw]', str);
-        try {
-            // Python 可能会一次输出多行，或者分块输出。这里做简单的按行分割处理。
-            // 实际生产中可能需要更健壮的缓冲区处理。
-            const lines = str.split('\n');
-            lines.forEach((line) => {
-                if (!line.trim())
-                    return;
-                try {
-                    const json = JSON.parse(line);
-                    if (win) {
-                        win.webContents.send('python-data', json);
-                    }
+        // 将新数据添加到缓冲区
+        pythonOutputBuffer += str;
+        // 按行分割处理
+        const lines = pythonOutputBuffer.split('\n');
+        // 保留最后一个可能不完整的行
+        pythonOutputBuffer = lines.pop() || '';
+        // 处理完整的行
+        lines.forEach((line) => {
+            if (!line.trim())
+                return;
+            try {
+                const json = JSON.parse(line);
+                if (win) {
+                    win.webContents.send('python-data', json);
                 }
-                catch (e) {
-                    console.log('[Python Non-JSON]', line);
-                }
-            });
-        }
-        catch (e) {
-            console.error('Error parsing python output:', e);
-        }
+            }
+            catch (e) {
+                console.log('[Python Non-JSON]', line);
+            }
+        });
     });
     pyProc.stderr?.on('data', (data) => {
         console.error(`[Python Err]: ${data}`);
+        // 也将错误信息发送到前端日志
+        if (win) {
+            win.webContents.send('python-data', {
+                type: 'log',
+                data: {
+                    level: 'ERROR',
+                    message: `Python stderr: ${data.toString()}`,
+                    timestamp: Date.now() / 1000
+                }
+            });
+        }
     });
     pyProc.on('close', (code) => {
         console.log(`Python process exited with code ${code}`);
+        if (win) {
+            win.webContents.send('python-data', {
+                type: 'log',
+                data: {
+                    level: 'WARN',
+                    message: `Python process exited with code ${code}`,
+                    timestamp: Date.now() / 1000
+                }
+            });
+        }
         pyProc = null;
+        pythonOutputBuffer = '';
+    });
+    pyProc.on('error', (error) => {
+        console.error('Failed to start Python process:', error);
+        if (win) {
+            win.webContents.send('python-data', {
+                type: 'log',
+                data: {
+                    level: 'ERROR',
+                    message: `Failed to start Python: ${error.message}`,
+                    timestamp: Date.now() / 1000
+                }
+            });
+        }
     });
 }
 function killPythonEngine() {
@@ -187,7 +296,15 @@ electron_2.ipcMain.handle('load-config', async () => {
 });
 // 应用启动
 electron_1.app.whenReady().then(() => {
-    console.log('App is ready, creating window...');
+    console.log('App is ready, checking admin privileges...');
+    // 检查管理员权限
+    if (!isAdmin()) {
+        console.warn('Application is not running with administrator privileges');
+        requestAdminAndRestart();
+        return;
+    }
+    console.log('Running with administrator privileges ✓');
+    console.log('Creating window...');
     createWindow();
     startPythonEngine();
     // 加载配置并注册快捷键

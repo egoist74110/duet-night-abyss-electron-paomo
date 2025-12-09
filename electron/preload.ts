@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 监听快捷键触发
   onHotkeyTriggered: (callback: (action: 'start' | 'stop') => void) => {
     ipcRenderer.on('hotkey-triggered', (_event, action) => callback(action))
+  },
+  // 监听快捷键注册结果
+  onHotkeyRegistrationResult: (callback: (results: any) => void) => {
+    ipcRenderer.on('hotkey-registration-result', (_event, results) => callback(results))
   }
 })
 

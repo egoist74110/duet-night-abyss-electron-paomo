@@ -1,4 +1,4 @@
-export {}
+export { }
 
 declare global {
   interface Window {
@@ -10,6 +10,10 @@ declare global {
       saveConfig: (config: { hotkeys: { start: string; stop: string } }) => Promise<boolean>
       loadConfig: () => Promise<{ hotkeys: { start: string; stop: string } }>
       onHotkeyTriggered: (callback: (action: 'start' | 'stop') => void) => void
+      onHotkeyRegistrationResult: (callback: (results: {
+        start: { success: boolean; key: string }
+        stop: { success: boolean; key: string }
+      }) => void) => void
     }
   }
 }

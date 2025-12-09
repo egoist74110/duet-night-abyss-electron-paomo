@@ -4,14 +4,22 @@ import { ref, computed } from 'vue'
 export const useGameStore = defineStore('game', () => {
   const isRunning = ref(false)
   const logs = ref<{ level: string; message: string; timestamp: number }[]>([])
-  
+
   // 快捷键配置
   const startHotkey = ref('')
   const stopHotkey = ref('')
 
+  // 服务器类型配置
+  const serverType = ref<'cn' | 'global'>('cn') // 默认国服
+
   // 计算属性:是否已配置快捷键
   const isHotkeyConfigured = computed(() => {
     return startHotkey.value.trim() !== '' && stopHotkey.value.trim() !== ''
+  })
+
+  // 计算属性:根据服务器类型获取搜索关键词
+  const serverKeyword = computed(() => {
+    return serverType.value === 'cn' ? '二重螺旋' : 'Duet Night Abyss'
   })
 
   function addLog(log: { level: string; message: string; timestamp: number }) {
@@ -64,13 +72,72 @@ export const useGameStore = defineStore('game', () => {
     }
 
     if (isRunning.value) {
-      isRunning.value = false
-      window.electronAPI.sendToPython({ action: 'stop_script' })
+      stopScript()
     } else {
-      isRunning.value = true
-      window.electronAPI.sendToPython({ action: 'start_script' })
+      startScript()
     }
     return true
+  }
+
+  function startScript() {
+    // 检查是否已配置快捷键
+    if (!isHotkeyConfigured.value) {
+      console.warn('Hotkeys not configured')
+      return false
+    }
+
+    if (isRunning.value) {
+      console.warn('Script is already running')
+      return false
+    }
+
+    isRunning.value = true
+    window.electronAPI.sendToPython({ action: 'start_script' })
+    console.log('Script started')
+    return true
+  }
+
+  function stopScript() {
+    if (!isRunning.value) {
+      console.warn('Script is not running')
+      // 即使前端认为没有运行，也发送停止命令到Python，以防状态不同步
+    }
+
+    isRunning.value = false
+    window.electronAPI.sendToPython({ action: 'stop_script' })
+    console.log('Script stopped')
+    return true
+  }
+
+  // 脚本配置
+  const selectedScript = ref('fire10') // 当前选择的脚本
+  const scriptConfigs = ref<Record<string, any>>({
+    fire10: {
+      maxRounds: 10,
+      timeout: 300,
+      dungeonType: 'default'
+    }
+  })
+
+  // 可用脚本列表
+  const availableScripts = [
+    {
+      id: 'fire10',
+      name: '火10',
+      description: '火10副本自动化脚本',
+      type: 'dungeon' // 副本类型脚本
+    }
+    // 未来添加更多脚本
+  ]
+
+  // 获取当前脚本配置
+  const currentScriptConfig = computed(() => {
+    return scriptConfigs.value[selectedScript.value] || {}
+  })
+
+  // 更新脚本配置
+  function updateScriptConfig(scriptId: string, config: any) {
+    scriptConfigs.value[scriptId] = config
   }
 
   function ping() {
@@ -83,10 +150,19 @@ export const useGameStore = defineStore('game', () => {
     startHotkey,
     stopHotkey,
     isHotkeyConfigured,
+    serverType,
+    serverKeyword,
+    selectedScript,
+    scriptConfigs,
+    availableScripts,
+    currentScriptConfig,
     addLog,
     loadConfig,
     saveConfig,
     toggleScript,
+    startScript,
+    stopScript,
+    updateScriptConfig,
     ping
   }
 })

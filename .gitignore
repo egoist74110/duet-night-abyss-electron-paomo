@@ -1,1 +1,7 @@
 node_modules
+
+# Embedded Python
+python/
+__pycache__/
+*.py[cod]
+*.pyc

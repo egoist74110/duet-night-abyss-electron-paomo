@@ -14,6 +14,10 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     // 监听快捷键触发
     onHotkeyTriggered: (callback) => {
         electron_1.ipcRenderer.on('hotkey-triggered', (_event, action) => callback(action));
+    },
+    // 监听快捷键注册结果
+    onHotkeyRegistrationResult: (callback) => {
+        electron_1.ipcRenderer.on('hotkey-registration-result', (_event, results) => callback(results));
     }
 });
 console.log('[Preload] electronAPI exposed');

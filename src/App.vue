@@ -2,6 +2,7 @@
 import { ElConfigProvider, ElMessage } from 'element-plus'
 import { useGameStore } from '@/store/gameStore'
 import { onMounted, computed, ref } from 'vue'
+import Fire10Config from '@/components/scripts/Fire10Config.vue'
 
 const store = useGameStore()
 
@@ -9,26 +10,215 @@ const store = useGameStore()
 const startHotkeyFocused = ref(false)
 const stopHotkeyFocused = ref(false)
 
+// 防抖：防止快捷键重复触发
+let lastStartTrigger = 0
+let lastStopTrigger = 0
+const DEBOUNCE_DELAY = 500 // 500ms内的重复触发将被忽略
+
 onMounted(async () => {
   // 加载配置
   await store.loadConfig()
   
-  // 监听来自 Python 的数据
+  // 监听来自 Python 的数据 - 统一处理所有类型的Python数据
   window.electronAPI.onPythonData((data) => {
-    if (data.type === 'log') {
-      store.addLog(data.data)
+    try {
+      // 处理日志消息
+      if (data.type === 'log') {
+        store.addLog(data.data)
+      }
+      // 处理窗口检测响应
+      else if (data.type === 'windows_found') {
+        availableWindows.value = data.data.windows || []
+        detectingWindow.value = false
+        
+        // 判断是否为自动检测(有关键词搜索)
+        const isAutoDetect = availableWindows.value.length > 0 && 
+                            availableWindows.value.every(w => 
+                              w.title.includes(store.serverKeyword)
+                            )
+        
+        if (availableWindows.value.length > 0) {
+          if (isAutoDetect) {
+            // 自动检测:智能选择游戏窗口
+            // 过滤掉自己的应用程序窗口(包含"Automator"的)
+            const gameWindows = availableWindows.value.filter(w => 
+              !w.title.includes('Automator')
+            )
+            
+            if (gameWindows.length > 0) {
+              // 选择第一个游戏窗口
+              const targetWindow = gameWindows[0]
+              selectedWindowHwnd.value = targetWindow.hwnd
+              ElMessage.success(`找到游戏窗口: ${targetWindow.title}`)
+              
+              console.log(`自动选择窗口: ${targetWindow.title} (hwnd=${targetWindow.hwnd})`)
+              console.log(`过滤掉 ${availableWindows.value.length - gameWindows.length} 个非游戏窗口`)
+              
+              // 自动连接
+              window.electronAPI.sendToPython({
+                action: 'set_window',
+                hwnd: targetWindow.hwnd
+              })
+            } else {
+              // 所有窗口都是Automator,提示用户
+              ElMessage.warning('找到的窗口都是应用程序本身,请确保游戏已启动')
+              console.warn('所有找到的窗口:', availableWindows.value)
+            }
+          } else {
+            // 手动检测:仅显示找到的窗口数量
+            ElMessage.success(`找到 ${availableWindows.value.length} 个窗口`)
+          }
+        } else {
+          // 未找到窗口
+          if (isAutoDetect) {
+            ElMessage.error(`未找到游戏窗口,请确保游戏已启动 (搜索: ${store.serverKeyword})`)
+          } else {
+            ElMessage.warning('未找到窗口，请确保游戏已启动')
+          }
+        }
+      }
+      // 处理窗口连接响应
+      else if (data.type === 'window_set') {
+        gameWindowConnected.value = true
+        gameWindowTitle.value = data.data.title
+        ElMessage.success(`已连接到窗口: ${data.data.title}`)
+        
+        // 如果有待启动的脚本,连接成功后自动启动
+        if (pendingStartScript.value) {
+          pendingStartScript.value = false
+          console.log('Window connected, now starting script...')
+          
+          // 延迟一下再启动,确保窗口连接完成
+          setTimeout(() => {
+            handleStartScript()
+          }, 300)
+        }
+      }
+      // 处理窗口激活响应
+      else if (data.type === 'window_activated') {
+        if (data.data.success) {
+          console.log('窗口已成功置顶')
+          ElMessage.success('窗口已置顶(保持在最前面)')
+        } else {
+          console.warn('窗口置顶失败:', data.data.error)
+          ElMessage.warning('窗口置顶失败，请查看日志')
+        }
+      }
+      // 处理取消置顶响应
+      else if (data.type === 'topmost_deactivated') {
+        if (data.data.success) {
+          console.log('窗口置顶已取消')
+          ElMessage.success('窗口置顶已取消')
+        } else {
+          console.warn('取消置顶失败:', data.data.error)
+          ElMessage.warning('取消置顶失败')
+        }
+      }
+      // 未知消息类型
+      else {
+        console.log('Unknown Python data type:', data.type, data)
+      }
+    } catch (error) {
+      console.error('Error handling Python data:', error, data)
+      ElMessage.error('处理Python数据时出错')
     }
   })
 
   // 监听快捷键触发
   window.electronAPI.onHotkeyTriggered((action) => {
+    const now = Date.now()
+    
     if (action === 'start') {
+      // 防抖：如果距离上次触发不到500ms，忽略
+      if (now - lastStartTrigger < DEBOUNCE_DELAY) {
+        console.log('Start hotkey debounced')
+        return
+      }
+      lastStartTrigger = now
       handleStartScript()
     } else if (action === 'stop') {
+      // 防抖：如果距离上次触发不到500ms，忽略
+      if (now - lastStopTrigger < DEBOUNCE_DELAY) {
+        console.log('Stop hotkey debounced')
+        return
+      }
+      lastStopTrigger = now
       handleStopScript()
     }
   })
 })
+
+// 窗口检测相关状态
+const detectingWindow = ref(false)
+const gameWindowConnected = ref(false)
+const gameWindowTitle = ref('')
+const availableWindows = ref<Array<{hwnd: number, title: string}>>([])
+const selectedWindowHwnd = ref<number | null>(null)
+const pendingStartScript = ref(false)  // 标志位:检测窗口后是否需要启动脚本
+
+// 手动检测游戏窗口(显示所有窗口)
+function detectGameWindow() {
+  detectingWindow.value = true
+  availableWindows.value = []
+  window.electronAPI.sendToPython({
+    action: 'detect_window',
+    keyword: ''  // 空字符串表示查找所有窗口
+  })
+}
+
+// 自动检测游戏窗口(根据服务器类型自动搜索并连接)
+function autoDetectGameWindow() {
+  detectingWindow.value = true
+  availableWindows.value = []
+  
+  const keyword = store.serverKeyword
+  console.log(`Auto detecting window with keyword: ${keyword}`)
+  
+  window.electronAPI.sendToPython({
+    action: 'detect_window',
+    keyword: keyword
+  })
+}
+
+// 连接到选中的窗口
+function connectToWindow() {
+  if (selectedWindowHwnd.value) {
+    window.electronAPI.sendToPython({
+      action: 'set_window',
+      hwnd: selectedWindowHwnd.value
+    })
+  } else {
+    ElMessage.warning('请先选择一个窗口')
+  }
+}
+
+// 手动置顶窗口
+function activateWindow() {
+  if (!gameWindowConnected.value) {
+    ElMessage.warning('请先连接窗口')
+    return
+  }
+  
+  console.log('手动置顶窗口...')
+  window.electronAPI.sendToPython({
+    action: 'activate_window'
+  })
+  ElMessage.info('正在置顶窗口...')
+}
+
+// 取消窗口置顶
+function deactivateTopmost() {
+  if (!gameWindowConnected.value) {
+    ElMessage.warning('请先连接窗口')
+    return
+  }
+  
+  console.log('取消窗口置顶...')
+  window.electronAPI.sendToPython({
+    action: 'deactivate_topmost'
+  })
+  ElMessage.info('正在取消置顶...')
+}
 
 // 处理键盘事件,捕获快捷键
 function handleKeyDown(event: KeyboardEvent, type: 'start' | 'stop') {
@@ -86,18 +276,47 @@ function handleStartScript() {
     ElMessage.warning('请先配置并保存快捷键')
     return
   }
-  if (!store.isRunning) {
-    const success = store.toggleScript()
+
+  // 1. 检查是否在运行
+  if (store.isRunning) {
+    ElMessage.warning('脚本已经在运行中')
+    return
+  }
+  
+  // 2. 检查窗口是否连接
+  if (!gameWindowConnected.value) {
+    // 如果窗口未连接,自动检测并连接
+    ElMessage.info('正在自动检测游戏窗口...')
+    console.log('Window not connected, auto-detecting...')
+    
+    // 设置标志位,表示检测完成后需要启动脚本
+    pendingStartScript.value = true
+    
+    // 执行自动检测
+    autoDetectGameWindow()
+    return
+  }
+
+  // 3. 激活窗口（置顶）
+  console.log('Activating window before starting script...')
+  window.electronAPI.sendToPython({
+    action: 'activate_window'
+  })
+
+  // 4. 启动脚本
+  // 延迟启动，给窗口置顶足够的时间
+  setTimeout(() => {
+    const success = store.startScript()
     if (success) {
       ElMessage.success('脚本已启动')
     }
-  }
+  }, 500)  // 增加延迟到500ms
 }
 
 // 停止脚本
 function handleStopScript() {
-  if (store.isRunning) {
-    store.toggleScript()
+  const success = store.stopScript()
+  if (success) {
     ElMessage.info('脚本已停止')
   }
 }
@@ -178,6 +397,145 @@ const logString = computed(() => {
           </el-form>
         </el-card>
 
+        <!-- 窗口检测面板 -->
+        <el-card class="window-detection-card">
+          <template #header>
+            <div class="card-header">
+              <span>游戏窗口检测</span>
+              <el-tag 
+                :type="gameWindowConnected ? 'success' : 'danger'"
+                size="small"
+                style="margin-left: 10px;"
+              >
+                {{ gameWindowConnected ? '已连接' : '未连接' }}
+              </el-tag>
+            </div>
+          </template>
+
+          <el-form label-width="140px">
+            <!-- 服务器类型选择 -->
+            <el-form-item label="服务器类型">
+              <el-radio-group v-model="store.serverType">
+                <el-radio label="cn">国服 (二重螺旋)</el-radio>
+                <el-radio label="global">国际服 (Duet Night Abyss)</el-radio>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-form-item label="当前窗口">
+              <el-input 
+                v-model="gameWindowTitle" 
+                placeholder="未连接到游戏窗口"
+                readonly
+              />
+            </el-form-item>
+
+            <el-form-item label="检测窗口">
+              <el-space>
+                <el-button 
+                  type="success" 
+                  @click="autoDetectGameWindow"
+                  :loading="detectingWindow"
+                >
+                  {{ detectingWindow ? '检测中...' : '自动检测窗口' }}
+                </el-button>
+                <el-button 
+                  type="primary" 
+                  @click="detectGameWindow"
+                  :loading="detectingWindow"
+                >
+                  {{ detectingWindow ? '检测中...' : '手动检测窗口' }}
+                </el-button>
+              </el-space>
+              <div class="form-item-tip">
+                自动检测:根据服务器类型自动搜索并连接 | 手动检测:显示所有窗口
+              </div>
+            </el-form-item>
+
+            <!-- 窗口列表 -->
+            <el-form-item 
+              v-if="availableWindows.length > 0" 
+              label="选择窗口"
+            >
+              <el-select 
+                v-model="selectedWindowHwnd" 
+                placeholder="请选择要连接的窗口"
+                style="width: 100%;"
+                filterable
+              >
+                <el-option
+                  v-for="window in availableWindows"
+                  :key="window.hwnd"
+                  :label="window.title"
+                  :value="window.hwnd"
+                />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item v-if="availableWindows.length > 0">
+              <el-button 
+                type="success" 
+                @click="connectToWindow"
+                :disabled="!selectedWindowHwnd"
+              >
+                连接到窗口
+              </el-button>
+            </el-form-item>
+
+            <el-form-item v-if="gameWindowConnected" label="窗口置顶">
+              <el-space>
+                <el-button 
+                  type="primary" 
+                  @click="activateWindow"
+                  size="small"
+                >
+                  置顶窗口
+                </el-button>
+                <el-button 
+                  type="default" 
+                  @click="deactivateTopmost"
+                  size="small"
+                >
+                  取消置顶
+                </el-button>
+              </el-space>
+              <div class="form-item-tip">
+                置顶:窗口会一直在最前面 | 取消置顶:恢复普通窗口
+              </div>
+            </el-form-item>
+          </el-form>
+        </el-card>
+
+        <!-- 脚本选择面板 -->
+        <el-card class="script-selector-card">
+          <template #header>
+            <div class="card-header">
+              <span>脚本选择</span>
+            </div>
+          </template>
+          
+          <el-form label-width="140px">
+            <el-form-item label="选择脚本">
+              <el-select v-model="store.selectedScript" placeholder="请选择脚本" style="width: 100%;">
+                <el-option
+                  v-for="script in store.availableScripts"
+                  :key="script.id"
+                  :label="script.name"
+                  :value="script.id"
+                >
+                  <span style="float: left">{{ script.name }}</span>
+                  <span style="float: right; color: #8492a6; font-size: 13px">{{ script.description }}</span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-form>
+        </el-card>
+
+        <!-- 脚本配置面板 - 动态渲染 -->
+        <Fire10Config 
+          v-if="store.selectedScript === 'fire10'"
+          v-model="store.scriptConfigs.fire10"
+        />
+
         <!-- 控制面板 -->
         <el-card class="control-card">
           <template #header>
@@ -251,6 +609,8 @@ const logString = computed(() => {
 }
 
 .config-card,
+.window-detection-card,
+.script-selector-card,
 .control-card,
 .log-card {
   margin-bottom: 20px;
@@ -274,5 +634,12 @@ const logString = computed(() => {
   background: #1e1e1e;
   color: #d4d4d4;
   font-family: 'Courier New', monospace;
+}
+
+.form-item-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
 }
 </style>
