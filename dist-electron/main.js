@@ -7,6 +7,48 @@ const fs_1 = require("fs");
 const child_process_1 = require("child_process");
 // 屏蔽安全警告
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
+// 读取项目配置
+function loadProjectConfig() {
+    try {
+        const configPath = electron_1.app.isPackaged
+            ? (0, path_1.join)(process.resourcesPath, 'project.config.json')
+            : (0, path_1.join)(__dirname, '../project.config.json');
+        if ((0, fs_1.existsSync)(configPath)) {
+            const data = (0, fs_1.readFileSync)(configPath, 'utf-8');
+            const config = JSON.parse(data);
+            console.log('Project config loaded:', config.name, config.version);
+            return config;
+        }
+    }
+    catch (error) {
+        console.error('Failed to load project config:', error);
+    }
+    // 默认配置
+    return {
+        name: 'DNA Automator',
+        displayName: 'Duet Night Abyss Automator',
+        version: '0.1.0',
+        description: '基于 Electron + Vue 3 + Python 的自动化游戏辅助工具',
+        author: 'DNA Team',
+        keywords: ['游戏自动化', '图像识别', '脚本引擎'],
+        platforms: {
+            win32: {
+                adminRequired: true,
+                adminMessage: '需要管理员权限来置顶窗口、注册全局快捷键和模拟鼠标键盘操作'
+            },
+            darwin: {
+                adminRequired: false,
+                adminMessage: '需要辅助功能权限来操作窗口和模拟用户输入'
+            },
+            linux: {
+                adminRequired: false,
+                adminMessage: '需要X11权限和输入设备权限来操作窗口和模拟用户输入'
+            }
+        }
+    };
+}
+// 全局项目配置
+const projectConfig = loadProjectConfig();
 // 检查是否以管理员权限运行
 function isAdmin() {
     if (process.platform === 'win32') {
@@ -335,6 +377,109 @@ electron_2.ipcMain.handle('exit-script-mode', async () => {
     console.log('Exiting script mode, unregistering all hotkeys');
     unregisterAllHotkeys();
     return true;
+});
+// 处理检查管理员权限请求
+electron_2.ipcMain.handle('check-admin-privileges', async () => {
+    console.log('Checking admin privileges...');
+    const hasAdmin = isAdmin();
+    console.log('Admin privileges check result:', hasAdmin);
+    return hasAdmin;
+});
+// 处理获取项目配置请求
+electron_2.ipcMain.handle('get-project-config', async () => {
+    console.log('Getting project config...');
+    return projectConfig;
+});
+// 处理请求管理员权限
+electron_2.ipcMain.handle('request-admin-privileges', async () => {
+    console.log('Requesting admin privileges...');
+    if (isAdmin()) {
+        console.log('Already running with admin privileges');
+        return true;
+    }
+    try {
+        // 根据操作系统选择不同的权限请求方式
+        if (process.platform === 'win32') {
+            // Windows: 显示友好的对话框，引导用户重启应用
+            const options = {
+                type: 'warning',
+                buttons: ['以管理员身份重启', '稍后手动设置', '取消'],
+                defaultId: 0,
+                title: '需要管理员权限',
+                message: `${projectConfig.name} 需要管理员权限才能正常工作`,
+                detail: '应用需要管理员权限来:\n' +
+                    '• 置顶游戏窗口\n' +
+                    '• 模拟鼠标和键盘操作\n' +
+                    '• 注册全局快捷键\n\n' +
+                    '推荐操作:\n' +
+                    '1. 点击"以管理员身份重启"立即获取权限\n' +
+                    '2. 或者右键桌面快捷方式 → 属性 → 兼容性 → 勾选"以管理员身份运行此程序"'
+            };
+            const result = electron_1.dialog.showMessageBoxSync(win, options);
+            if (result === 0) {
+                // 用户选择重启
+                const exePath = process.execPath;
+                const args = process.argv.slice(1);
+                const command = `Start-Process -FilePath "${exePath}" -ArgumentList "${args.join(' ')}" -Verb RunAs`;
+                (0, child_process_1.exec)(`powershell -Command "${command}"`, (error) => {
+                    if (error) {
+                        console.error('Failed to restart as admin:', error);
+                    }
+                    electron_1.app.quit();
+                });
+                return true;
+            }
+            else if (result === 1) {
+                // 用户选择稍后手动设置
+                console.log('User chose to manually set admin privileges later');
+                return false;
+            }
+            else {
+                // 用户取消
+                console.log('User cancelled admin privilege request');
+                return false;
+            }
+        }
+        else if (process.platform === 'darwin') {
+            // macOS: 显示说明对话框
+            const options = {
+                type: 'info',
+                buttons: ['我知道了', '取消'],
+                defaultId: 0,
+                title: '权限说明',
+                message: `${projectConfig.name} 在 macOS 上的权限设置`,
+                detail: `在 macOS 上，某些功能可能需要额外权限:\n\n` +
+                    `• 辅助功能权限 (用于窗口操作)\n` +
+                    `• 屏幕录制权限 (用于截图识别)\n\n` +
+                    `如果遇到权限问题，请到:\n` +
+                    `系统偏好设置 → 安全性与隐私 → 隐私\n` +
+                    `在相应选项中添加 ${projectConfig.name}`
+            };
+            const result = electron_1.dialog.showMessageBoxSync(win, options);
+            return result === 0; // 用户点击"我知道了"返回true
+        }
+        else {
+            // Linux: 显示说明对话框
+            const options = {
+                type: 'info',
+                buttons: ['我知道了', '取消'],
+                defaultId: 0,
+                title: '权限说明',
+                message: `${projectConfig.name} 在 Linux 上的权限设置`,
+                detail: '在 Linux 上，某些功能可能需要额外权限:\n\n' +
+                    '• X11 权限 (用于窗口操作)\n' +
+                    '• 输入设备权限 (用于模拟操作)\n\n' +
+                    '如果遇到权限问题，请使用 sudo 运行或\n' +
+                    '将用户添加到相应的用户组中'
+            };
+            const result = electron_1.dialog.showMessageBoxSync(win, options);
+            return result === 0; // 用户点击"我知道了"返回true
+        }
+    }
+    catch (error) {
+        console.error('Failed to request admin privileges:', error);
+        return false;
+    }
 });
 // 应用启动
 electron_1.app.whenReady().then(() => {

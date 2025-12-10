@@ -41,7 +41,7 @@
         v-if="!store.isScriptMode && !store.isInitializing" 
         type="primary" 
         size="large" 
-        :disabled="!store.isHotkeyConfigured"
+        :disabled="!store.isHotkeyConfigured || !store.hasAdminPrivileges"
         @click="handleStartListeningClick"
       >
         脚本，启动！
@@ -67,7 +67,13 @@
 
     <!-- 控制提示信息 -->
     <div class="control-tip">
-      <p v-if="!store.isScriptMode && !store.isInitializing">
+      <p v-if="!store.isScriptMode && !store.isInitializing && !store.hasAdminPrivileges">
+        ⚠️ 需要管理员权限才能启动脚本，请先在"系统权限"面板中获取管理员权限
+      </p>
+      <p v-else-if="!store.isScriptMode && !store.isInitializing && !store.isHotkeyConfigured">
+        ⚠️ 请先配置并保存快捷键，然后点击"脚本，启动！"
+      </p>
+      <p v-else-if="!store.isScriptMode && !store.isInitializing">
         点击"脚本，启动！"后，将开始初始化流程：检测窗口 → 置顶窗口 → 进入脚本运行模式
       </p>
       <p v-else-if="store.isInitializing">

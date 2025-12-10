@@ -217,9 +217,19 @@ class WindowCapture:
             if win32gui.IsWindow(hwnd):
                 self.hwnd = hwnd
                 self.window_title = win32gui.GetWindowText(hwnd)
+                print(f"[OK] Windows窗口设置成功: {self.window_title}")
+                
+                # 设置窗口后立即尝试激活（置顶）
+                print(f"[INFO] 窗口设置成功，立即尝试激活窗口...")
+                activation_success = self.activate_window()
+                if activation_success:
+                    print(f"[OK] 窗口激活成功: {self.window_title}")
+                else:
+                    print(f"[WARN] 窗口激活失败，但窗口设置成功: {self.window_title}")
+                
                 return True
         except Exception as e:
-            print(f"设置窗口失败: {e}")
+            print(f"[ERROR] Windows设置窗口失败: {e}")
         return False
     
     def _set_window_macos(self, hwnd):
@@ -236,6 +246,15 @@ class WindowCapture:
                 self.hwnd = hwnd
                 self.window_title = windows[hwnd][1]
                 print(f"[OK] macOS窗口设置成功: {self.window_title}")
+                
+                # 设置窗口后立即尝试激活（置顶）
+                print(f"[INFO] 窗口设置成功，立即尝试激活窗口...")
+                activation_success = self.activate_window()
+                if activation_success:
+                    print(f"[OK] 窗口激活成功: {self.window_title}")
+                else:
+                    print(f"[WARN] 窗口激活失败，但窗口设置成功: {self.window_title}")
+                
                 return True
             else:
                 print(f"[ERROR] 窗口索引 {hwnd} 超出范围 (0-{len(windows)-1})")
@@ -463,32 +482,166 @@ class WindowCapture:
         try:
             print(f"[INFO] macOS窗口激活: {self.window_title}")
             
-            # 在macOS上，我们使用AppleScript来激活窗口
-            # 这是一个简化的实现，实际上需要更复杂的逻辑来找到特定窗口
+            if not self.window_title:
+                print("[ERROR] 没有设置窗口标题，无法激活")
+                return False
+            
+            # 在macOS上，我们使用AppleScript来查找并激活特定窗口
+            # 转义窗口标题中的特殊字符
+            escaped_title = self.window_title.replace('"', '\\"').replace('\\', '\\\\')
+            
             script = f'''
             tell application "System Events"
                 try
-                    set frontApp to first application process whose frontmost is true
-                    set frontApp to frontmost
-                    return "Window activated"
-                on error
-                    return "Failed to activate window"
+                    -- 查找包含指定标题的窗口
+                    set targetWindow to null
+                    set targetApp to null
+                    
+                    repeat with proc in (every process whose background only is false)
+                        try
+                            repeat with win in (every window of proc)
+                                set windowName to name of win as string
+                                if windowName contains "{escaped_title}" then
+                                    set targetWindow to win
+                                    set targetApp to proc
+                                    exit repeat
+                                end if
+                            end repeat
+                            if targetWindow is not null then exit repeat
+                        on error
+                            -- 忽略无法访问的进程
+                        end try
+                    end repeat
+                    
+                    if targetWindow is not null then
+                        -- 激活应用程序
+                        set frontmost of targetApp to true
+                        
+                        -- 等待一小段时间确保应用激活
+                        delay 0.1
+                        
+                        -- 将窗口置于前台
+                        perform action "AXRaise" of targetWindow
+                        
+                        return "SUCCESS: Window activated - " & (name of targetWindow as string)
+                    else
+                        return "ERROR: Window not found - {escaped_title}"
+                    end if
+                    
+                on error errorMessage
+                    return "ERROR: " & errorMessage
                 end try
             end tell
             '''
             
+            print("[DEBUG] 执行AppleScript激活窗口...")
             result = subprocess.run(['osascript', '-e', script], 
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, timeout=10)
+            
+            print(f"[DEBUG] AppleScript返回码: {result.returncode}")
+            print(f"[DEBUG] AppleScript输出: {result.stdout.strip()}")
+            if result.stderr:
+                print(f"[DEBUG] AppleScript错误: {result.stderr.strip()}")
             
             if result.returncode == 0:
-                print("[OK] macOS窗口激活完成")
-                return True
+                output = result.stdout.strip()
+                if output.startswith("SUCCESS:"):
+                    print("[OK] macOS窗口激活成功")
+                    return True
+                else:
+                    print(f"[WARN] macOS窗口激活失败: {output}")
+                    
+                    # 如果找不到窗口，尝试备用方法：激活包含关键词的应用
+                    return self._activate_window_macos_fallback()
             else:
-                print(f"[WARN] macOS窗口激活失败: {result.stderr}")
+                error_msg = result.stderr.strip() if result.stderr else "未知错误"
+                print(f"[ERROR] AppleScript执行失败: {error_msg}")
+                
+                # 检查是否是权限问题
+                if "not allowed assistive access" in error_msg.lower() or "accessibility" in error_msg.lower():
+                    print("[ERROR] 需要辅助功能权限！")
+                    print("[HELP] 请在 系统偏好设置 > 安全性与隐私 > 隐私 > 辅助功能 中添加此应用")
+                
                 return False
                 
+        except subprocess.TimeoutExpired:
+            print("[ERROR] AppleScript执行超时")
+            return False
         except Exception as e:
             print(f"[ERROR] macOS窗口激活出错: {e}")
+            import traceback
+            print(f"[DEBUG] 异常详情: {traceback.format_exc()}")
+            return False
+    
+    def _activate_window_macos_fallback(self):
+        """macOS窗口激活备用方法：通过应用名称激活"""
+        try:
+            print(f"[INFO] 尝试备用激活方法...")
+            
+            # 从窗口标题推断可能的应用名称
+            # 对于游戏窗口，通常应用名称包含在窗口标题中
+            app_keywords = []
+            if "二重螺旋" in self.window_title:
+                app_keywords = ["二重螺旋", "Duet", "Night", "Abyss"]
+            elif "Duet Night Abyss" in self.window_title:
+                app_keywords = ["Duet Night Abyss", "Duet", "Night", "Abyss"]
+            else:
+                # 尝试使用窗口标题的第一个词作为应用名
+                words = self.window_title.split()
+                if words:
+                    app_keywords = [words[0]]
+            
+            if not app_keywords:
+                print("[WARN] 无法推断应用名称")
+                return False
+            
+            for keyword in app_keywords:
+                escaped_keyword = keyword.replace('"', '\\"').replace('\\', '\\\\')
+                
+                script = f'''
+                tell application "System Events"
+                    try
+                        set targetApp to null
+                        repeat with proc in (every process whose background only is false)
+                            set appName to name of proc as string
+                            if appName contains "{escaped_keyword}" then
+                                set targetApp to proc
+                                exit repeat
+                            end if
+                        end repeat
+                        
+                        if targetApp is not null then
+                            set frontmost of targetApp to true
+                            return "SUCCESS: App activated - " & (name of targetApp as string)
+                        else
+                            return "ERROR: App not found - {escaped_keyword}"
+                        end if
+                        
+                    on error errorMessage
+                        return "ERROR: " & errorMessage
+                    end try
+                end tell
+                '''
+                
+                print(f"[DEBUG] 尝试激活包含关键词 '{keyword}' 的应用...")
+                result = subprocess.run(['osascript', '-e', script], 
+                                      capture_output=True, text=True, timeout=5)
+                
+                if result.returncode == 0:
+                    output = result.stdout.strip()
+                    if output.startswith("SUCCESS:"):
+                        print(f"[OK] 备用方法成功激活应用: {output}")
+                        return True
+                    else:
+                        print(f"[DEBUG] 关键词 '{keyword}' 未找到匹配应用: {output}")
+                else:
+                    print(f"[DEBUG] 关键词 '{keyword}' 激活失败: {result.stderr}")
+            
+            print("[WARN] 所有备用激活方法都失败了")
+            return False
+            
+        except Exception as e:
+            print(f"[ERROR] 备用激活方法出错: {e}")
             return False
     
     def _activate_window_cross_platform(self):

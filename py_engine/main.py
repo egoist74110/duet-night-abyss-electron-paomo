@@ -9,6 +9,47 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
+# 项目配置
+project_config = None
+
+def load_project_config():
+    """加载项目配置文件"""
+    global project_config
+    try:
+        # 尝试从多个可能的路径加载配置文件
+        possible_paths = [
+            os.path.join(script_dir, '..', 'project.config.json'),  # 开发模式
+            os.path.join(os.path.dirname(script_dir), 'project.config.json'),  # 生产模式
+            os.path.join(script_dir, 'project.config.json')  # 备用路径
+        ]
+        
+        for config_path in possible_paths:
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    project_config = json.load(f)
+                    print(f"[INFO] Project config loaded from: {config_path}", flush=True)
+                    print(f"[INFO] Project: {project_config.get('name', 'Unknown')} v{project_config.get('version', '0.0.0')}", flush=True)
+                    return project_config
+        
+        print("[WARN] Project config file not found, using defaults", flush=True)
+        # 默认配置
+        project_config = {
+            "name": "DNA Automator",
+            "displayName": "Duet Night Abyss Automator",
+            "version": "0.1.0"
+        }
+        return project_config
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to load project config: {str(e)}", flush=True)
+        # 使用默认配置
+        project_config = {
+            "name": "DNA Automator",
+            "displayName": "Duet Night Abyss Automator",
+            "version": "0.1.0"
+        }
+        return project_config
+
 # 导入自定义模块
 from window_capture import WindowCapture
 from image_recognition import ImageRecognition
@@ -102,7 +143,11 @@ def stop_script():
 
 def main():
     """主函数:处理来自Electron的命令"""
+    # 加载项目配置
+    config = load_project_config()
+    
     log("Python Engine Started", "INFO")
+    log(f"Project: {config.get('name', 'Unknown')} v{config.get('version', '0.0.0')}", "INFO")
     log(f"Python version: {sys.version}", "INFO")
     log(f"Script directory: {script_dir}", "INFO")
     log("Waiting for commands from Electron...", "INFO")

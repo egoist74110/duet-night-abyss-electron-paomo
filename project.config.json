@@ -1,0 +1,22 @@
+{
+  "name": "DNA Automator",
+  "displayName": "Duet Night Abyss Automator",
+  "version": "0.1.0",
+  "description": "基于 Electron + Vue 3 + Python 的自动化游戏辅助工具",
+  "author": "DNA Team",
+  "keywords": ["游戏自动化", "图像识别", "脚本引擎"],
+  "platforms": {
+    "windows": {
+      "adminRequired": true,
+      "adminMessage": "需要管理员权限来置顶窗口、注册全局快捷键和模拟鼠标键盘操作"
+    },
+    "darwin": {
+      "adminRequired": false,
+      "adminMessage": "需要辅助功能权限来操作窗口和模拟用户输入"
+    },
+    "linux": {
+      "adminRequired": false,
+      "adminMessage": "需要X11权限和输入设备权限来操作窗口和模拟用户输入"
+    }
+  }
+}

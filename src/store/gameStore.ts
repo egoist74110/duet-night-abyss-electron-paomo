@@ -30,6 +30,28 @@ export const useGameStore = defineStore('game', () => {
   // 选中的窗口句柄
   const selectedWindowHwnd = ref<number | null>(null)
 
+  // 管理员权限状态 - 表示当前是否以管理员权限运行
+  const hasAdminPrivileges = ref(false)
+
+  // 权限检查状态 - 表示是否正在检查管理员权限
+  const checkingAdminPrivileges = ref(false)
+
+  // 项目配置 - 存储从Electron主进程获取的项目配置信息
+  const projectConfig = ref<{
+    name: string
+    displayName: string
+    version: string
+    description: string
+    author: string
+    keywords: string[]
+    platforms: {
+      [key: string]: {
+        adminRequired: boolean
+        adminMessage: string
+      }
+    }
+  } | null>(null)
+
   // 计算属性:是否已配置快捷键
   const isHotkeyConfigured = computed(() => {
     return startHotkey.value.trim() !== '' && stopHotkey.value.trim() !== ''
@@ -57,6 +79,17 @@ export const useGameStore = defineStore('game', () => {
       console.log('Config loaded:', config)
     } catch (error) {
       console.error('Failed to load config:', error)
+    }
+  }
+
+  // 加载项目配置
+  async function loadProjectConfig() {
+    try {
+      const config = await window.electronAPI.getProjectConfig()
+      projectConfig.value = config
+      console.log('Project config loaded:', config.name, config.version)
+    } catch (error) {
+      console.error('Failed to load project config:', error)
     }
   }
 
@@ -214,6 +247,49 @@ export const useGameStore = defineStore('game', () => {
     selectedWindowHwnd.value = hwnd
   }
 
+  // 设置管理员权限状态
+  function setAdminPrivileges(hasAdmin: boolean) {
+    console.log(`[STORE] 设置管理员权限状态: ${hasAdminPrivileges.value} -> ${hasAdmin}`)
+    hasAdminPrivileges.value = hasAdmin
+  }
+
+  // 设置权限检查状态
+  function setCheckingAdminPrivileges(checking: boolean) {
+    console.log(`[STORE] 设置权限检查状态: ${checkingAdminPrivileges.value} -> ${checking}`)
+    checkingAdminPrivileges.value = checking
+  }
+
+  // 检查管理员权限
+  async function checkAdminPrivileges() {
+    setCheckingAdminPrivileges(true)
+    try {
+      const hasAdmin = await window.electronAPI.checkAdminPrivileges()
+      setAdminPrivileges(hasAdmin)
+      return hasAdmin
+    } catch (error) {
+      console.error('Failed to check admin privileges:', error)
+      setAdminPrivileges(false)
+      return false
+    } finally {
+      setCheckingAdminPrivileges(false)
+    }
+  }
+
+  // 请求管理员权限
+  async function requestAdminPrivileges() {
+    try {
+      const success = await window.electronAPI.requestAdminPrivileges()
+      if (success) {
+        // 权限获取成功后重新检查状态
+        await checkAdminPrivileges()
+      }
+      return success
+    } catch (error) {
+      console.error('Failed to request admin privileges:', error)
+      return false
+    }
+  }
+
   // 完成脚本初始化并进入脚本运行模式
   async function completeInitializationAndEnterScriptMode() {
     if (!isInitializing.value) {
@@ -276,6 +352,8 @@ export const useGameStore = defineStore('game', () => {
     connectingWindow,
     availableWindows,
     selectedWindowHwnd,
+    hasAdminPrivileges,
+    checkingAdminPrivileges,
     selectedScript,
     scriptConfigs,
     availableScripts,
@@ -295,6 +373,12 @@ export const useGameStore = defineStore('game', () => {
     setAvailableWindows,
     clearAvailableWindows,
     setSelectedWindowHwnd,
+    setAdminPrivileges,
+    setCheckingAdminPrivileges,
+    checkAdminPrivileges,
+    requestAdminPrivileges,
+    projectConfig,
+    loadProjectConfig,
     updateScriptConfig,
     ping
   }

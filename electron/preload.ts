@@ -21,7 +21,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // 脚本运行模式相关方法
   enterScriptMode: (stopKey: string) => ipcRenderer.invoke('enter-script-mode', stopKey),
-  exitScriptMode: () => ipcRenderer.invoke('exit-script-mode')
+  exitScriptMode: () => ipcRenderer.invoke('exit-script-mode'),
+  // 管理员权限相关方法
+  checkAdminPrivileges: () => ipcRenderer.invoke('check-admin-privileges'),
+  requestAdminPrivileges: () => ipcRenderer.invoke('request-admin-privileges'),
+  // 项目配置相关方法
+  getProjectConfig: () => ipcRenderer.invoke('get-project-config')
 })
 
 console.log('[Preload] electronAPI exposed')

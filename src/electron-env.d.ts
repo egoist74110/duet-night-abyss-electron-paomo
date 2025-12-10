@@ -17,6 +17,24 @@ declare global {
       // 脚本运行模式相关方法
       enterScriptMode: (stopKey: string) => Promise<boolean>
       exitScriptMode: () => Promise<boolean>
+      // 管理员权限相关方法
+      checkAdminPrivileges: () => Promise<boolean>
+      requestAdminPrivileges: () => Promise<boolean>
+      // 项目配置相关方法
+      getProjectConfig: () => Promise<{
+        name: string
+        displayName: string
+        version: string
+        description: string
+        author: string
+        keywords: string[]
+        platforms: {
+          [key: string]: {
+            adminRequired: boolean
+            adminMessage: string
+          }
+        }
+      }>
     }
   }
 }

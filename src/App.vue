@@ -9,6 +9,7 @@ import { useGameStore } from '@/store/gameStore'
 
 // 导入模块化组件
 import AppHeader from '@/components/AppHeader.vue'
+import AdminPrivileges from '@/components/AdminPrivileges.vue'
 import ControlPanel from '@/components/ControlPanel.vue'
 import HotkeyConfig from '@/components/HotkeyConfig.vue'
 import WindowDetection from '@/components/WindowDetection.vue'
@@ -34,7 +35,10 @@ const pythonData = usePythonData()
  * 组件挂载时的初始化逻辑
  */
 onMounted(async () => {
-  // 加载配置
+  // 加载项目配置
+  await store.loadProjectConfig()
+  
+  // 加载用户配置
   await store.loadConfig()
 
   // 监听来自Python的数据 - 统一处理所有类型的Python数据
@@ -78,6 +82,9 @@ onUnmounted(() => {
 
       <!-- 主内容区 -->
       <div class="main-content">
+        <!-- 系统权限面板 -->
+        <AdminPrivileges />
+
         <!-- 控制面板 -->
         <ControlPanel 
           :game-window-connected="windowDetection.gameWindowConnected.value"
