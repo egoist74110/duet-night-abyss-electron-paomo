@@ -30,6 +30,12 @@ export const useGameStore = defineStore('game', () => {
   // 选中的窗口句柄
   const selectedWindowHwnd = ref<number | null>(null)
 
+  // 游戏窗口连接状态 - 表示是否已成功连接到游戏窗口
+  const gameWindowConnected = ref(false)
+
+  // Python数据 - 存储从Python后端接收到的最新数据
+  const pythonData = ref<any>(null)
+
   // 管理员权限状态 - 表示当前是否以管理员权限运行
   const hasAdminPrivileges = ref(false)
 
@@ -247,6 +253,17 @@ export const useGameStore = defineStore('game', () => {
     selectedWindowHwnd.value = hwnd
   }
 
+  // 设置游戏窗口连接状态
+  function setGameWindowConnected(connected: boolean) {
+    console.log(`[STORE] 设置游戏窗口连接状态: ${gameWindowConnected.value} -> ${connected}`)
+    gameWindowConnected.value = connected
+  }
+
+  // 设置Python数据
+  function setPythonData(data: any) {
+    pythonData.value = data
+  }
+
   // 设置管理员权限状态
   function setAdminPrivileges(hasAdmin: boolean) {
     console.log(`[STORE] 设置管理员权限状态: ${hasAdminPrivileges.value} -> ${hasAdmin}`)
@@ -352,6 +369,8 @@ export const useGameStore = defineStore('game', () => {
     connectingWindow,
     availableWindows,
     selectedWindowHwnd,
+    gameWindowConnected,
+    pythonData,
     hasAdminPrivileges,
     checkingAdminPrivileges,
     selectedScript,
@@ -373,6 +392,8 @@ export const useGameStore = defineStore('game', () => {
     setAvailableWindows,
     clearAvailableWindows,
     setSelectedWindowHwnd,
+    setGameWindowConnected,
+    setPythonData,
     setAdminPrivileges,
     setCheckingAdminPrivileges,
     checkAdminPrivileges,

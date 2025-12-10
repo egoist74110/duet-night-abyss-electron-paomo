@@ -16,6 +16,7 @@ import WindowDetection from '@/components/WindowDetection.vue'
 import ScriptSelector from '@/components/ScriptSelector.vue'
 import LogPanel from '@/components/LogPanel.vue'
 import Fire10Config from '@/components/scripts/Fire10Config.vue'
+import TestMouseKeyboard from '@/components/TestMouseKeyboard.vue'
 
 // 导入hooks
 import { useWindowDetection } from '@/hooks/useWindowDetection'
@@ -103,6 +104,9 @@ onUnmounted(() => {
 
         <!-- 脚本配置面板 - 动态渲染 -->
         <Fire10Config v-if="store.selectedScript === 'fire10'" v-model="store.scriptConfigs.fire10" />
+
+        <!-- 测试组件 -->
+        <TestMouseKeyboard />
 
         <!-- 日志面板 -->
         <LogPanel />

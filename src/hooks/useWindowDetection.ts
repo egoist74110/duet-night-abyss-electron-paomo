@@ -306,6 +306,9 @@ export function useWindowDetection() {
     gameWindowConnected.value = true
     gameWindowTitle.value = data.title
     
+    // 更新store中的游戏窗口连接状态
+    store.setGameWindowConnected(true)
+    
     // 显示连接成功消息
     message.success(`已连接到窗口: ${data.title}`)
     console.log(`[RESPONSE] 窗口连接成功: ${data.title}`)

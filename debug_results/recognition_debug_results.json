@@ -1,0 +1,816 @@
+{
+  "screenshot_info": {
+    "width": 3840,
+    "height": 2160,
+    "channels": 3
+  },
+  "template_tests": {
+    "火副本": {
+      "template_path": "/Users/wesker/duet-night-abyss-electron-paomo/static/dungeon/火.png",
+      "threshold_tests": {
+        "0.5": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.5
+        },
+        "0.55": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.55
+        },
+        "0.6": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.6
+        },
+        "0.65": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.65
+        },
+        "0.7": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.7
+        },
+        "0.75": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.75
+        },
+        "0.8": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.8
+        },
+        "0.85": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.85
+        },
+        "0.9": {
+          "found": true,
+          "position": [
+            559,
+            457
+          ],
+          "confidence": 0.9742544293403625,
+          "threshold": 0.9
+        }
+      },
+      "best_result": {
+        "found": true,
+        "position": [
+          559,
+          457
+        ],
+        "confidence": 0.9742544293403625,
+        "threshold": 0.5
+      },
+      "template_info": {
+        "width": 100,
+        "height": 100,
+        "channels": 3,
+        "mean_brightness": 64.6542,
+        "std_brightness": 48.690728299749225,
+        "edge_density": 0.0583,
+        "histogram_peak": 45,
+        "size_category": "large"
+      }
+    },
+    "水副本": {
+      "template_path": "/Users/wesker/duet-night-abyss-electron-paomo/static/dungeon/水.png",
+      "threshold_tests": {
+        "0.5": {
+          "found": true,
+          "position": [
+            802,
+            1388
+          ],
+          "confidence": 0.6803444027900696,
+          "threshold": 0.5
+        },
+        "0.55": {
+          "found": true,
+          "position": [
+            802,
+            1388
+          ],
+          "confidence": 0.6803444027900696,
+          "threshold": 0.55
+        },
+        "0.6": {
+          "found": true,
+          "position": [
+            802,
+            1388
+          ],
+          "confidence": 0.6803444027900696,
+          "threshold": 0.6
+        },
+        "0.65": {
+          "found": true,
+          "position": [
+            802,
+            1388
+          ],
+          "confidence": 0.6803444027900696,
+          "threshold": 0.65
+        },
+        "0.7": {
+          "found": true,
+          "position": [
+            802,
+            1388
+          ],
+          "confidence": 0.6803444027900696,
+          "threshold": 0.7
+        },
+        "0.75": {
+          "found": true,
+          "position": [
+            802,
+            1388
+          ],
+          "confidence": 0.6803444027900696,
+          "threshold": 0.75
+        },
+        "0.8": {
+          "found": true,
+          "position": [
+            1645,
+            1614
+          ],
+          "confidence": 0.7316871285438538,
+          "threshold": 0.8
+        },
+        "0.85": {
+          "found": true,
+          "position": [
+            804,
+            1398
+          ],
+          "confidence": 0.753584086894989,
+          "threshold": 0.85
+        },
+        "0.9": {
+          "found": true,
+          "position": [
+            728,
+            1666
+          ],
+          "confidence": 0.7588472366333008,
+          "threshold": 0.9
+        }
+      },
+      "best_result": {
+        "found": true,
+        "position": [
+          728,
+          1666
+        ],
+        "confidence": 0.7588472366333008,
+        "threshold": 0.9
+      },
+      "template_info": {
+        "width": 100,
+        "height": 100,
+        "channels": 3,
+        "mean_brightness": 22.3412,
+        "std_brightness": 52.354208833292475,
+        "edge_density": 0.0613,
+        "histogram_peak": 0,
+        "size_category": "large"
+      }
+    },
+    "风副本": {
+      "template_path": "/Users/wesker/duet-night-abyss-electron-paomo/static/dungeon/风.png",
+      "threshold_tests": {
+        "0.5": {
+          "found": true,
+          "position": [
+            2907,
+            2069
+          ],
+          "confidence": 0.6993662714958191,
+          "threshold": 0.5
+        },
+        "0.55": {
+          "found": true,
+          "position": [
+            2907,
+            2069
+          ],
+          "confidence": 0.6993662714958191,
+          "threshold": 0.55
+        },
+        "0.6": {
+          "found": true,
+          "position": [
+            2907,
+            2069
+          ],
+          "confidence": 0.6993662714958191,
+          "threshold": 0.6
+        },
+        "0.65": {
+          "found": true,
+          "position": [
+            2907,
+            2069
+          ],
+          "confidence": 0.6993662714958191,
+          "threshold": 0.65
+        },
+        "0.7": {
+          "found": true,
+          "position": [
+            2907,
+            2069
+          ],
+          "confidence": 0.6993662714958191,
+          "threshold": 0.7
+        },
+        "0.75": {
+          "found": true,
+          "position": [
+            2907,
+            2069
+          ],
+          "confidence": 0.6993662714958191,
+          "threshold": 0.75
+        },
+        "0.8": {
+          "found": true,
+          "position": [
+            2908,
+            2074
+          ],
+          "confidence": 0.7664480805397034,
+          "threshold": 0.8
+        },
+        "0.85": {
+          "found": true,
+          "position": [
+            2908,
+            2074
+          ],
+          "confidence": 0.7664480805397034,
+          "threshold": 0.85
+        },
+        "0.9": {
+          "found": true,
+          "position": [
+            114,
+            91
+          ],
+          "confidence": 0.8221306800842285,
+          "threshold": 0.9
+        }
+      },
+      "best_result": {
+        "found": true,
+        "position": [
+          114,
+          91
+        ],
+        "confidence": 0.8221306800842285,
+        "threshold": 0.9
+      },
+      "template_info": {
+        "width": 100,
+        "height": 100,
+        "channels": 3,
+        "mean_brightness": 38.2246,
+        "std_brightness": 70.29976497001964,
+        "edge_density": 0.0717,
+        "histogram_peak": 0,
+        "size_category": "large"
+      }
+    },
+    "电副本": {
+      "template_path": "/Users/wesker/duet-night-abyss-electron-paomo/static/dungeon/电.png",
+      "threshold_tests": {
+        "0.5": {
+          "found": true,
+          "position": [
+            804,
+            1388
+          ],
+          "confidence": 0.7638766169548035,
+          "threshold": 0.5
+        },
+        "0.55": {
+          "found": true,
+          "position": [
+            804,
+            1388
+          ],
+          "confidence": 0.7638766169548035,
+          "threshold": 0.55
+        },
+        "0.6": {
+          "found": true,
+          "position": [
+            804,
+            1388
+          ],
+          "confidence": 0.7638766169548035,
+          "threshold": 0.6
+        },
+        "0.65": {
+          "found": true,
+          "position": [
+            804,
+            1388
+          ],
+          "confidence": 0.7638766169548035,
+          "threshold": 0.65
+        },
+        "0.7": {
+          "found": true,
+          "position": [
+            804,
+            1388
+          ],
+          "confidence": 0.7638766169548035,
+          "threshold": 0.7
+        },
+        "0.75": {
+          "found": true,
+          "position": [
+            804,
+            1388
+          ],
+          "confidence": 0.7638766169548035,
+          "threshold": 0.75
+        },
+        "0.8": {
+          "found": true,
+          "position": [
+            804,
+            1388
+          ],
+          "confidence": 0.7638766169548035,
+          "threshold": 0.8
+        },
+        "0.85": {
+          "found": true,
+          "position": [
+            804,
+            1388
+          ],
+          "confidence": 0.7638766169548035,
+          "threshold": 0.85
+        },
+        "0.9": {
+          "found": true,
+          "position": [
+            74,
+            90
+          ],
+          "confidence": 0.7998818159103394,
+          "threshold": 0.9
+        }
+      },
+      "best_result": {
+        "found": true,
+        "position": [
+          74,
+          90
+        ],
+        "confidence": 0.7998818159103394,
+        "threshold": 0.9
+      },
+      "template_info": {
+        "width": 100,
+        "height": 100,
+        "channels": 3,
+        "mean_brightness": 34.3116,
+        "std_brightness": 64.00000082375,
+        "edge_density": 0.0764,
+        "histogram_peak": 0,
+        "size_category": "large"
+      }
+    },
+    "暗副本": {
+      "template_path": "/Users/wesker/duet-night-abyss-electron-paomo/static/dungeon/暗.png",
+      "threshold_tests": {
+        "0.5": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.5
+        },
+        "0.55": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.55
+        },
+        "0.6": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.6
+        },
+        "0.65": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.65
+        },
+        "0.7": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.7
+        },
+        "0.75": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.75
+        },
+        "0.8": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.8
+        },
+        "0.85": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.85
+        },
+        "0.9": {
+          "found": true,
+          "position": [
+            552,
+            1796
+          ],
+          "confidence": 0.9870727062225342,
+          "threshold": 0.9
+        }
+      },
+      "best_result": {
+        "found": true,
+        "position": [
+          552,
+          1796
+        ],
+        "confidence": 0.9870727062225342,
+        "threshold": 0.5
+      },
+      "template_info": {
+        "width": 100,
+        "height": 100,
+        "channels": 3,
+        "mean_brightness": 96.2972,
+        "std_brightness": 40.47646565795981,
+        "edge_density": 0.0711,
+        "histogram_peak": 80,
+        "size_category": "large"
+      }
+    },
+    "光副本": {
+      "template_path": "/Users/wesker/duet-night-abyss-electron-paomo/static/dungeon/光.png",
+      "threshold_tests": {
+        "0.5": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.5
+        },
+        "0.55": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.55
+        },
+        "0.6": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.6
+        },
+        "0.65": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.65
+        },
+        "0.7": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.7
+        },
+        "0.75": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.75
+        },
+        "0.8": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.8
+        },
+        "0.85": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.85
+        },
+        "0.9": {
+          "found": true,
+          "position": [
+            1009,
+            510
+          ],
+          "confidence": 0.9681426882743835,
+          "threshold": 0.9
+        }
+      },
+      "best_result": {
+        "found": true,
+        "position": [
+          1009,
+          510
+        ],
+        "confidence": 0.9681426882743835,
+        "threshold": 0.5
+      },
+      "template_info": {
+        "width": 100,
+        "height": 100,
+        "channels": 3,
+        "mean_brightness": 118.5298,
+        "std_brightness": 38.41510525769778,
+        "edge_density": 0.0522,
+        "histogram_peak": 104,
+        "size_category": "large"
+      }
+    },
+    "开始挑战": {
+      "template_path": "/Users/wesker/duet-night-abyss-electron-paomo/static/dungeon/开始挑战.png",
+      "threshold_tests": {
+        "0.5": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.5
+        },
+        "0.55": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.55
+        },
+        "0.6": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.6
+        },
+        "0.65": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.65
+        },
+        "0.7": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.7
+        },
+        "0.75": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.75
+        },
+        "0.8": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.8
+        },
+        "0.85": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.85
+        },
+        "0.9": {
+          "found": true,
+          "position": [
+            2950,
+            1664
+          ],
+          "confidence": 0.8604157567024231,
+          "threshold": 0.9
+        }
+      },
+      "best_result": {
+        "found": true,
+        "position": [
+          2950,
+          1664
+        ],
+        "confidence": 0.8604157567024231,
+        "threshold": 0.5
+      },
+      "template_info": {
+        "width": 298,
+        "height": 45,
+        "channels": 3,
+        "mean_brightness": 22.853914988814317,
+        "std_brightness": 44.50032871495705,
+        "edge_density": 0.09694258016405667,
+        "histogram_peak": 1,
+        "size_category": "large"
+      }
+    }
+  },
+  "recommendations": [
+    {
+      "template": "火副本",
+      "type": "excellent",
+      "message": "火副本: 识别效果优秀 (置信度: 0.974)，建议阈值: 0.50"
+    },
+    {
+      "template": "火副本",
+      "type": "tip",
+      "message": "火副本: 边缘特征较少，建议选择边缘更清晰的区域作为模板"
+    },
+    {
+      "template": "水副本",
+      "type": "good",
+      "message": "水副本: 识别效果良好 (置信度: 0.759)，建议阈值: 0.90"
+    },
+    {
+      "template": "水副本",
+      "type": "tip",
+      "message": "水副本: 边缘特征较少，建议选择边缘更清晰的区域作为模板"
+    },
+    {
+      "template": "风副本",
+      "type": "excellent",
+      "message": "风副本: 识别效果优秀 (置信度: 0.822)，建议阈值: 0.90"
+    },
+    {
+      "template": "风副本",
+      "type": "tip",
+      "message": "风副本: 边缘特征较少，建议选择边缘更清晰的区域作为模板"
+    },
+    {
+      "template": "电副本",
+      "type": "good",
+      "message": "电副本: 识别效果良好 (置信度: 0.800)，建议阈值: 0.90"
+    },
+    {
+      "template": "电副本",
+      "type": "tip",
+      "message": "电副本: 边缘特征较少，建议选择边缘更清晰的区域作为模板"
+    },
+    {
+      "template": "暗副本",
+      "type": "excellent",
+      "message": "暗副本: 识别效果优秀 (置信度: 0.987)，建议阈值: 0.50"
+    },
+    {
+      "template": "暗副本",
+      "type": "tip",
+      "message": "暗副本: 边缘特征较少，建议选择边缘更清晰的区域作为模板"
+    },
+    {
+      "template": "光副本",
+      "type": "excellent",
+      "message": "光副本: 识别效果优秀 (置信度: 0.968)，建议阈值: 0.50"
+    },
+    {
+      "template": "光副本",
+      "type": "tip",
+      "message": "光副本: 边缘特征较少，建议选择边缘更清晰的区域作为模板"
+    },
+    {
+      "template": "开始挑战",
+      "type": "excellent",
+      "message": "开始挑战: 识别效果优秀 (置信度: 0.860)，建议阈值: 0.50"
+    },
+    {
+      "template": "开始挑战",
+      "type": "tip",
+      "message": "开始挑战: 边缘特征较少，建议选择边缘更清晰的区域作为模板"
+    }
+  ]
+}

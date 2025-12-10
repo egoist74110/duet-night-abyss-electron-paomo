@@ -53,6 +53,16 @@ export function usePythonData() {
       else if (data.type === 'topmost_deactivated') {
         windowHandlers.handleTopmostDeactivated(data.data)
       }
+      // 处理图像识别相关的响应
+      else if (data.type.startsWith('recognition_') || 
+               data.type === 'test_recognition_result' ||
+               data.type === 'simulate_click_result' ||
+               data.type === 'simulate_key_result' ||
+               data.type === 'config_saved' ||
+               data.type === 'config_loaded' ||
+               data.type === 'config_test_result') {
+        handleImageRecognitionData(data)
+      }
       // 未知消息类型
       else {
         console.warn('Unknown Python data type:', data.type, data)
@@ -62,6 +72,16 @@ export function usePythonData() {
       console.error('Error handling Python data:', error, data)
       message.error('处理Python数据时出错')
     }
+  }
+
+  /**
+   * 处理图像识别相关的响应
+   */
+  function handleImageRecognitionData(data: any) {
+    console.log('处理图像识别数据:', data.type, data.data)
+    
+    // 更新store中的Python数据，让图像识别组件能够监听到
+    store.setPythonData(data)
   }
 
   return {

@@ -1,0 +1,295 @@
+{
+  "test_info": {
+    "timestamp": "2025-12-10T17:26:14.316460",
+    "platform": "macOS",
+    "logical_screen_size": [
+      1920,
+      1080
+    ],
+    "display_info": {
+      "is_retina": false,
+      "resolution": "Resolution: 3840 x 2160 (2160p/4K UHD 1 - Ultra High Definition)",
+      "scaling": "unknown"
+    }
+  },
+  "test_results": [
+    {
+      "test_name": "screenshot_resolution",
+      "timestamp": "2025-12-10T17:26:06.633843",
+      "logical_size": [
+        1920,
+        1080
+      ],
+      "actual_size": [
+        3840,
+        2160
+      ],
+      "scale_factor": [
+        2.0,
+        2.0
+      ],
+      "is_hidpi": true,
+      "display_info": {
+        "is_retina": false,
+        "resolution": "Resolution: 3840 x 2160 (2160p/4K UHD 1 - Ultra High Definition)",
+        "scaling": "unknown"
+      }
+    },
+    {
+      "test_name": "mouse_coordinate_accuracy",
+      "timestamp": "2025-12-10T17:26:09.853124",
+      "test_points": [
+        {
+          "target": [
+            100,
+            100
+          ],
+          "actual": [
+            100,
+            100
+          ],
+          "error": [
+            0,
+            0
+          ],
+          "total_error": 0.0,
+          "accuracy": "完美"
+        },
+        {
+          "target": [
+            960,
+            540
+          ],
+          "actual": [
+            960,
+            540
+          ],
+          "error": [
+            0,
+            0
+          ],
+          "total_error": 0.0,
+          "accuracy": "完美"
+        },
+        {
+          "target": [
+            1820,
+            980
+          ],
+          "actual": [
+            1820,
+            980
+          ],
+          "error": [
+            0,
+            0
+          ],
+          "total_error": 0.0,
+          "accuracy": "完美"
+        },
+        {
+          "target": [
+            480,
+            270
+          ],
+          "actual": [
+            480,
+            270
+          ],
+          "error": [
+            0,
+            0
+          ],
+          "total_error": 0.0,
+          "accuracy": "完美"
+        },
+        {
+          "target": [
+            1440,
+            810
+          ],
+          "actual": [
+            1440,
+            810
+          ],
+          "error": [
+            0,
+            0
+          ],
+          "total_error": 0.0,
+          "accuracy": "完美"
+        }
+      ],
+      "summary": {
+        "avg_error": 0.0,
+        "max_error": 0.0,
+        "total_tests": 5,
+        "successful_tests": 5
+      }
+    },
+    {
+      "test_name": "screenshot_resolution",
+      "timestamp": "2025-12-10T17:26:10.118333",
+      "logical_size": [
+        1920,
+        1080
+      ],
+      "actual_size": [
+        3840,
+        2160
+      ],
+      "scale_factor": [
+        2.0,
+        2.0
+      ],
+      "is_hidpi": true,
+      "display_info": {
+        "is_retina": false,
+        "resolution": "Resolution: 3840 x 2160 (2160p/4K UHD 1 - Ultra High Definition)",
+        "scaling": "unknown"
+      }
+    },
+    {
+      "test_name": "coordinate_conversion",
+      "timestamp": "2025-12-10T17:26:14.316255",
+      "scale_factor": [
+        2.0,
+        2.0
+      ],
+      "conversions": [
+        {
+          "screenshot_coord": [
+            1000,
+            500
+          ],
+          "methods": [
+            {
+              "method": "直接使用",
+              "converted": [
+                1000,
+                500
+              ],
+              "actual": [
+                1000,
+                500
+              ],
+              "error": 0.0
+            },
+            {
+              "method": "缩放转换",
+              "converted": [
+                500.0,
+                250.0
+              ],
+              "actual": [
+                500,
+                250
+              ],
+              "error": 0.0
+            },
+            {
+              "method": "逆向缩放",
+              "converted": [
+                500.0,
+                250.0
+              ],
+              "actual": [
+                500,
+                250
+              ],
+              "error": 0.0
+            }
+          ]
+        },
+        {
+          "screenshot_coord": [
+            2000,
+            1000
+          ],
+          "methods": [
+            {
+              "method": "直接使用",
+              "converted": [
+                2000,
+                1000
+              ],
+              "actual": [
+                2000,
+                1000
+              ],
+              "error": 0.0
+            },
+            {
+              "method": "缩放转换",
+              "converted": [
+                1000.0,
+                500.0
+              ],
+              "actual": [
+                1000,
+                500
+              ],
+              "error": 0.0
+            },
+            {
+              "method": "逆向缩放",
+              "converted": [
+                1000.0,
+                500.0
+              ],
+              "actual": [
+                1000,
+                500
+              ],
+              "error": 0.0
+            }
+          ]
+        },
+        {
+          "screenshot_coord": [
+            3000,
+            1500
+          ],
+          "methods": [
+            {
+              "method": "直接使用",
+              "converted": [
+                3000,
+                1500
+              ],
+              "actual": [
+                3000,
+                1500
+              ],
+              "error": 0.0
+            },
+            {
+              "method": "缩放转换",
+              "converted": [
+                1500.0,
+                750.0
+              ],
+              "actual": [
+                1500,
+                750
+              ],
+              "error": 0.0
+            },
+            {
+              "method": "逆向缩放",
+              "converted": [
+                1500.0,
+                750.0
+              ],
+              "actual": [
+                1500,
+                750
+              ],
+              "error": 0.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

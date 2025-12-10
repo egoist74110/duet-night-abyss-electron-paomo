@@ -45,7 +45,12 @@ class WindowCapture:
         self.hwnd = None
         self.window_title = ""
         self.platform = PLATFORM
+        self.window_rect = None  # 存储窗口位置和大小
+        self.scale_factor = 1.0  # 显示缩放因子
         print(f"[INFO] WindowCapture initialized for platform: {self.platform}")
+        
+        # 检测显示缩放因子
+        self._detect_scale_factor()
         
     def find_windows(self, keyword=""):
         """
@@ -288,6 +293,16 @@ class WindowCapture:
             return self._capture_macos()
         else:
             return self._capture_cross_platform()
+    
+    def capture_window(self):
+        """
+        捕获窗口的别名方法，与capture()功能相同
+        主要用于图像识别系统的兼容性
+        
+        Returns:
+            numpy.ndarray: BGR格式的图像，如果失败返回None
+        """
+        return self.capture()
     
     def _capture_windows(self):
         """Windows平台窗口捕获"""
@@ -702,3 +717,215 @@ class WindowCapture:
         """跨平台取消置顶"""
         print("[INFO] 跨平台取消窗口置顶")
         return True
+    
+    def _detect_scale_factor(self):
+        """检测显示缩放因子"""
+        try:
+            if self.platform == 'macos':
+                # macOS HiDPI检测 - 使用更可靠的方法
+                try:
+                    import pyautogui
+                    # 获取pyautogui报告的屏幕尺寸
+                    logical_width, logical_height = pyautogui.size()
+                    print(f"[DEBUG] pyautogui屏幕尺寸: {logical_width}x{logical_height}")
+                    
+                    # 使用Cocoa API获取真实屏幕尺寸
+                    import subprocess
+                    result = subprocess.run(['system_profiler', 'SPDisplaysDataType'], 
+                                          capture_output=True, text=True, timeout=5)
+                    
+                    # 检查是否为Retina显示器
+                    if 'Retina' in result.stdout or 'HiDPI' in result.stdout:
+                        # 对于Retina显示器，通常物理分辨率是逻辑分辨率的2倍
+                        self.scale_factor = 2.0
+                        print(f"[INFO] 检测到macOS Retina显示器，缩放因子: {self.scale_factor}")
+                    else:
+                        # 尝试通过分辨率比较来检测
+                        # 如果截图尺寸大于逻辑屏幕尺寸，说明有缩放
+                        self.scale_factor = 1.0
+                        print(f"[INFO] macOS标准显示器，缩放因子: {self.scale_factor}")
+                        
+                except Exception as e:
+                    print(f"[WARN] macOS缩放检测失败: {e}")
+                    self.scale_factor = 1.0
+                    
+            elif self.platform == 'windows':
+                # Windows DPI检测
+                try:
+                    import ctypes
+                    user32 = ctypes.windll.user32
+                    user32.SetProcessDPIAware()
+                    dc = user32.GetDC(0)
+                    dpi = ctypes.windll.gdi32.GetDeviceCaps(dc, 88)  # LOGPIXELSX
+                    user32.ReleaseDC(0, dc)
+                    self.scale_factor = dpi / 96.0  # 96 DPI是标准
+                    print(f"[INFO] Windows DPI: {dpi}, 缩放因子: {self.scale_factor}")
+                except:
+                    self.scale_factor = 1.0
+                    print(f"[WARN] 无法检测Windows DPI，使用默认缩放因子: {self.scale_factor}")
+            else:
+                self.scale_factor = 1.0
+                print(f"[INFO] 跨平台默认缩放因子: {self.scale_factor}")
+        except Exception as e:
+            self.scale_factor = 1.0
+            print(f"[WARN] 缩放因子检测失败，使用默认值: {e}")
+    
+    def convert_relative_to_screen_coords(self, rel_x, rel_y):
+        """
+        将相对于截图的坐标转换为屏幕绝对坐标
+        专门针对macOS HiDPI环境进行优化
+        
+        Args:
+            rel_x: 相对X坐标（截图内的坐标）
+            rel_y: 相对Y坐标（截图内的坐标）
+            
+        Returns:
+            tuple: (screen_x, screen_y) 屏幕绝对坐标
+        """
+        try:
+            print(f"[DEBUG] 开始坐标转换: 相对坐标({rel_x}, {rel_y})")
+            print(f"[DEBUG] 当前平台: {self.platform}")
+            
+            # 获取屏幕尺寸
+            import pyautogui
+            logical_screen_width, logical_screen_height = pyautogui.size()
+            print(f"[DEBUG] 逻辑屏幕尺寸: {logical_screen_width}x{logical_screen_height}")
+            
+            if self.platform == 'macos':
+                # macOS 坐标转换：考虑 HiDPI 和窗口偏移
+                print(f"[DEBUG] macOS 坐标转换开始...")
+                
+                # 方法1：尝试获取当前截图进行精确转换
+                current_screenshot = self.capture()
+                if current_screenshot is not None:
+                    screenshot_height, screenshot_width = current_screenshot.shape[:2]
+                    print(f"[DEBUG] 截图实际尺寸: {screenshot_width}x{screenshot_height}")
+                    
+                    # 检查是否为全屏截图（HiDPI环境）
+                    if screenshot_width > logical_screen_width * 1.5:
+                        # HiDPI 环境：需要缩放转换
+                        scale_x = screenshot_width / logical_screen_width
+                        scale_y = screenshot_height / logical_screen_height
+                        print(f"[DEBUG] HiDPI环境，缩放比例: X={scale_x:.4f}, Y={scale_y:.4f}")
+                        
+                        screen_x = rel_x / scale_x
+                        screen_y = rel_y / scale_y
+                        print(f"[DEBUG] HiDPI缩放转换: ({rel_x}, {rel_y}) -> ({screen_x:.1f}, {screen_y:.1f})")
+                    else:
+                        # 标准环境：直接使用坐标
+                        print(f"[DEBUG] 标准分辨率环境")
+                        screen_x = rel_x
+                        screen_y = rel_y
+                        print(f"[DEBUG] 直接使用坐标: ({rel_x}, {rel_y}) -> ({screen_x}, {screen_y})")
+                else:
+                    # 方法2：无法获取截图，使用智能推测
+                    print(f"[WARN] 无法获取截图，使用智能推测")
+                    
+                    # 检查坐标是否明显超出逻辑屏幕范围
+                    if rel_x > logical_screen_width * 1.5 or rel_y > logical_screen_height * 1.5:
+                        # 坐标明显超出，可能是 HiDPI 环境
+                        estimated_scale = 2.0  # 假设是 2x Retina
+                        screen_x = rel_x / estimated_scale
+                        screen_y = rel_y / estimated_scale
+                        print(f"[DEBUG] 推测HiDPI环境，缩放转换: ({rel_x}, {rel_y}) -> ({screen_x:.1f}, {screen_y:.1f})")
+                    else:
+                        # 坐标在合理范围内，直接使用
+                        screen_x = rel_x
+                        screen_y = rel_y
+                        print(f"[DEBUG] 坐标在合理范围，直接使用: ({rel_x}, {rel_y})")
+                
+            elif self.platform == 'windows':
+                # Windows平台：需要考虑窗口位置偏移
+                window_rect = self.get_window_rect()
+                if window_rect:
+                    window_x, window_y, window_width, window_height = window_rect
+                    print(f"[DEBUG] Windows窗口信息: 位置({window_x}, {window_y}), 尺寸({window_width}x{window_height})")
+                    
+                    # 检查是否需要缩放调整
+                    if window_width > logical_screen_width or window_height > logical_screen_height:
+                        # 有缩放的情况
+                        scale_x = window_width / logical_screen_width
+                        scale_y = window_height / logical_screen_height
+                        screen_x = rel_x / scale_x
+                        screen_y = rel_y / scale_y
+                        print(f"[DEBUG] Windows缩放转换: 缩放因子({scale_x:.2f}, {scale_y:.2f})")
+                    else:
+                        # 无缩放，直接加窗口偏移
+                        screen_x = window_x + rel_x
+                        screen_y = window_y + rel_y
+                        print(f"[DEBUG] Windows偏移转换: 窗口偏移({window_x}, {window_y})")
+                else:
+                    # 无法获取窗口信息，直接使用相对坐标
+                    screen_x = rel_x
+                    screen_y = rel_y
+                    print(f"[DEBUG] Windows回退处理: 直接使用相对坐标")
+                    
+            else:
+                # 其他平台默认处理
+                screen_x = rel_x
+                screen_y = rel_y
+                print(f"[DEBUG] 默认平台处理: 直接使用相对坐标")
+            
+            # 重要：对于macOS HiDPI环境，不要强制限制坐标范围
+            # 因为在HiDPI环境下，有效的鼠标坐标可能超出逻辑屏幕尺寸
+            if self.platform == 'macos':
+                # macOS环境下，允许坐标超出逻辑屏幕范围
+                # 但仍然进行合理性检查，避免过度偏离
+                max_reasonable_x = logical_screen_width * 3  # 允许3倍逻辑宽度
+                max_reasonable_y = logical_screen_height * 3  # 允许3倍逻辑高度
+                
+                original_x, original_y = screen_x, screen_y
+                screen_x = max(0, min(screen_x, max_reasonable_x))
+                screen_y = max(0, min(screen_y, max_reasonable_y))
+                
+                if original_x != screen_x or original_y != screen_y:
+                    print(f"[WARN] macOS坐标超出合理范围，已调整: ({original_x:.1f}, {original_y:.1f}) -> ({screen_x:.1f}, {screen_y:.1f})")
+                else:
+                    print(f"[INFO] macOS坐标在合理范围内: ({screen_x:.1f}, {screen_y:.1f})")
+            else:
+                # 非macOS平台，保持原有的严格限制
+                original_x, original_y = screen_x, screen_y
+                screen_x = max(0, min(screen_x, logical_screen_width - 1))
+                screen_y = max(0, min(screen_y, logical_screen_height - 1))
+                
+                if original_x != screen_x or original_y != screen_y:
+                    print(f"[WARN] 坐标被限制在屏幕范围内: ({original_x}, {original_y}) -> ({screen_x}, {screen_y})")
+            
+            print(f"[DEBUG] 最终转换结果: ({rel_x}, {rel_y}) -> ({screen_x:.1f}, {screen_y:.1f})")
+            return int(screen_x), int(screen_y)
+            
+        except Exception as e:
+            print(f"[ERROR] 坐标转换失败: {e}")
+            import traceback
+            print(f"[DEBUG] 错误详情: {traceback.format_exc()}")
+            return rel_x, rel_y
+    
+    def get_accurate_click_position(self, template_match_x, template_match_y, template_name=None):
+        """
+        获取精确的点击位置（考虑所有缩放和偏移因素）
+        
+        Args:
+            template_match_x: 模板匹配得到的X坐标
+            template_match_y: 模板匹配得到的Y坐标
+            template_name: 模板名称（用于特殊调整）
+            
+        Returns:
+            tuple: (click_x, click_y) 精确的点击坐标
+        """
+        # 首先进行基本的坐标转换
+        screen_x, screen_y = self.convert_relative_to_screen_coords(template_match_x, template_match_y)
+        
+        # 根据模板类型进行微调（可选）
+        if template_name:
+            if 'challenge' in template_name.lower() or '挑战' in template_name:
+                # 对于挑战按钮，可能需要点击中心偏下一点
+                print(f"[DEBUG] 挑战按钮位置微调前: ({screen_x}, {screen_y})")
+                # 这里可以根据需要添加微调逻辑
+                print(f"[DEBUG] 挑战按钮位置微调后: ({screen_x}, {screen_y})")
+            elif 'dungeon' in template_name.lower() or '副本' in template_name:
+                # 对于副本图标，确保点击中心
+                print(f"[DEBUG] 副本图标位置微调前: ({screen_x}, {screen_y})")
+                # 这里可以根据需要添加微调逻辑
+                print(f"[DEBUG] 副本图标位置微调后: ({screen_x}, {screen_y})")
+        
+        return screen_x, screen_y
