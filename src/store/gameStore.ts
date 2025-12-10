@@ -172,11 +172,14 @@ export const useGameStore = defineStore('game', () => {
   const selectedScript = ref('material-dungeon') // 当前选择的脚本
   const scriptConfigs = ref<Record<string, any>>({
     'material-dungeon': {
-      maxRounds: 10,
-      timeout: 300,
-      dungeonSequence: [
-        { material: '火', times: 1 },
-        { material: '水', times: 1 }
+      dungeonType: 'role-material',     // 副本类型
+      timeout: 300,                     // 超时时间
+      materialSequence: [               // 材料刷取顺序
+        { 
+          material: '火', 
+          times: 1,                     // 刷取次数
+          dungeonSequence: 10           // 每次进副本打多少轮次
+        }
       ]
     }
   })
