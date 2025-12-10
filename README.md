@@ -23,6 +23,7 @@
 
 ## 🏗 架构设计 (Architecture)
 
+### 整体架构
 ```mermaid
 graph TD
     User[用户] --> UI[Vue 3 前端界面]
@@ -32,6 +33,33 @@ graph TD
     Python -- Stdout/JSON --> Main
     Python -- 图像识别/操作 --> Game[游戏窗口]
 ```
+
+### 前端模块化架构 (重构后)
+```mermaid
+graph TD
+    App[App.vue 主应用] --> Header[AppHeader 顶部导航]
+    App --> Control[ControlPanel 控制面板]
+    App --> Hotkey[HotkeyConfig 快捷键配置]
+    App --> Window[WindowDetection 窗口检测]
+    App --> Script[ScriptSelector 脚本选择]
+    App --> Log[LogPanel 日志面板]
+    
+    Control --> useScript[useScriptControl Hook]
+    Hotkey --> useHotkey[useHotkeyConfig Hook]
+    Window --> useWindow[useWindowDetection Hook]
+    App --> usePython[usePythonData Hook]
+    
+    useScript --> Store[GameStore 状态管理]
+    useHotkey --> Store
+    useWindow --> Store
+    usePython --> Store
+```
+
+### Hook + 组件分离设计
+- **Hook层**: 负责业务逻辑、状态管理、API调用
+- **组件层**: 负责视图渲染、用户交互、样式展示
+- **Store层**: 负责全局状态管理、数据持久化
+- **通信层**: 组件间通过props/emit通信，Hook间通过store共享状态
 
 ## 🚀 快速开始 (Getting Started)
 
@@ -585,6 +613,126 @@ message.show('warning', '警告信息')
 - 所有代码都有详细的JSDoc注释
 - 通过TypeScript类型检查,无语法错误
 - 使用单例模式,避免重复实例化
+
+---
+
+### Issue #13: App.vue模块化重构 - Hook + 组件分离架构
+**需求**:
+- App.vue过于臃肿，包含了多个功能模块的逻辑和视图
+- 需要采用hook文件存储组件TypeScript逻辑，vue文件存储页面视图的方式进行分离
+- 提高代码的可维护性和可复用性
+
+**问题分析**:
+1. 原App.vue文件超过400行，包含了窗口检测、快捷键配置、脚本控制、Python数据处理等多个模块
+2. 逻辑和视图混合在一起，难以维护和测试
+3. 缺乏模块化设计，代码复用性差
+
+**重构方案**:
+
+**1. 创建Hooks目录结构**:
+```
+src/hooks/
+├── useWindowDetection.ts    # 窗口检测相关逻辑
+├── useHotkeyConfig.ts       # 快捷键配置相关逻辑  
+├── useScriptControl.ts      # 脚本控制相关逻辑
+└── usePythonData.ts         # Python数据处理逻辑
+```
+
+**2. 创建模块化组件**:
+```
+src/components/
+├── AppHeader.vue           # 应用顶部导航栏
+├── ControlPanel.vue        # 脚本控制面板
+├── HotkeyConfig.vue        # 快捷键配置组件
+├── WindowDetection.vue     # 窗口检测组件
+├── ScriptSelector.vue      # 脚本选择组件
+├── LogPanel.vue           # 日志面板组件
+└── scripts/
+    └── Fire10Config.vue   # 火10脚本配置(已存在)
+```
+
+**3. Hook设计原则**:
+- **单一职责**: 每个hook只负责一个功能模块
+- **状态管理**: 使用ref和computed管理响应式状态
+- **方法封装**: 将复杂逻辑封装为可复用的方法
+- **类型安全**: 完整的TypeScript类型定义
+- **详细注释**: 每个方法都有JSDoc注释说明
+
+**4. 组件设计原则**:
+- **视图专注**: 组件只负责视图渲染和用户交互
+- **Props传递**: 通过props接收父组件数据
+- **事件通信**: 通过emit向父组件发送事件
+- **Hook集成**: 使用对应的hook处理业务逻辑
+- **样式隔离**: 每个组件有独立的scoped样式
+
+**5. 重构后的架构优势**:
+
+**代码组织**:
+- ✅ 逻辑与视图完全分离
+- ✅ 模块化设计，职责清晰
+- ✅ 代码复用性大幅提升
+- ✅ 易于单元测试
+
+**开发体验**:
+- ✅ 文件结构清晰，易于定位问题
+- ✅ Hook可以在多个组件间复用
+- ✅ 组件更轻量，专注于视图渲染
+- ✅ TypeScript类型提示完整
+
+**维护性**:
+- ✅ 修改某个功能只需要关注对应的hook和组件
+- ✅ 新增功能可以复用现有的hook
+- ✅ 代码结构符合Vue 3 Composition API最佳实践
+- ✅ 便于团队协作开发
+
+**6. 文件大小对比**:
+- **重构前**: App.vue (400+ 行)
+- **重构后**: 
+  - App.vue (80 行) - 只负责组件组装
+  - 4个Hook文件 (平均80行) - 专注业务逻辑
+  - 6个组件文件 (平均60行) - 专注视图渲染
+
+**7. 使用示例**:
+```typescript
+// Hook使用示例 (useWindowDetection.ts)
+export function useWindowDetection() {
+  const detectingWindow = ref(false)
+  const gameWindowConnected = ref(false)
+  
+  function detectGameWindow() {
+    // 窗口检测逻辑
+  }
+  
+  return {
+    detectingWindow,
+    gameWindowConnected,
+    detectGameWindow
+  }
+}
+
+// 组件使用示例 (WindowDetection.vue)
+<script setup lang="ts">
+import { useWindowDetection } from '@/hooks/useWindowDetection'
+
+const {
+  detectingWindow,
+  gameWindowConnected,
+  detectGameWindow
+} = useWindowDetection()
+</script>
+```
+
+**用户体验改进**:
+- 应用启动速度更快(组件按需加载)
+- 代码热更新更精确(只更新修改的模块)
+- 开发调试更方便(错误定位更准确)
+- 功能扩展更容易(新增hook和组件即可)
+
+**测试验证**:
+- ✅ 所有TypeScript类型检查通过
+- ✅ 所有组件正常渲染
+- ✅ 所有功能逻辑保持不变
+- ✅ 代码结构清晰，符合最佳实践
 
 ---
 
