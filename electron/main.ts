@@ -218,13 +218,32 @@ let pyProc: ChildProcess | null = null
 let pythonOutputBuffer = '' // 缓冲区用于处理不完整的JSON
 
 function startPythonEngine() {
-  // 优先使用嵌入式Python，如果不存在则使用系统Python
-  const embeddedPythonPath = join(__dirname, '../python/python.exe')
-  const systemPythonPath = 'python'
-
-  // 检查嵌入式Python是否存在
-  const fs = require('fs')
-  const pythonPath = fs.existsSync(embeddedPythonPath) ? embeddedPythonPath : systemPythonPath
+  // 根据操作系统选择合适的Python路径
+  let pythonPath: string
+  
+  if (process.platform === 'win32') {
+    // Windows: 优先使用嵌入式Python，如果不存在则使用系统Python
+    const embeddedPythonPath = join(__dirname, '../python/python.exe')
+    const fs = require('fs')
+    pythonPath = fs.existsSync(embeddedPythonPath) ? embeddedPythonPath : 'python'
+  } else {
+    // macOS/Linux: 尝试多个可能的Python命令
+    const possiblePythonPaths = ['python3', 'python', '/usr/bin/python3', '/usr/local/bin/python3']
+    pythonPath = 'python3' // 默认使用python3
+    
+    // 检查哪个Python命令可用
+    const { execSync } = require('child_process')
+    for (const path of possiblePythonPaths) {
+      try {
+        execSync(`${path} --version`, { stdio: 'ignore' })
+        pythonPath = path
+        console.log(`Found Python at: ${path}`)
+        break
+      } catch (error) {
+        // 继续尝试下一个路径
+      }
+    }
+  }
 
   // Python脚本路径
   // 开发模式: __dirname 是 dist-electron,需要回到根目录再进入 py_engine

@@ -616,6 +616,66 @@ message.show('warning', '警告信息')
 
 ---
 
+### Issue #14: macOS兼容性修复 - 跨平台Python环境支持
+**问题描述**:
+1. 应用在macOS上启动时报错: `spawn python ENOENT`
+2. Python依赖安装失败: `pywin32` 是Windows专用包
+3. 窗口捕获模块使用Windows专用API，在macOS上无法运行
+
+**根本原因**:
+1. Electron主进程硬编码使用 `python` 命令，但macOS系统使用 `python3`
+2. `requirements.txt` 包含Windows专用依赖 `pywin32`
+3. `window_capture.py` 使用 `win32gui` 等Windows专用模块
+
+**解决方案**:
+
+**1. 智能Python路径检测 (electron/main.ts)**:
+- Windows: 优先使用嵌入式Python，回退到系统Python
+- macOS/Linux: 自动尝试 `python3`, `python`, `/usr/bin/python3` 等路径
+- 使用 `execSync` 验证Python命令是否可用
+- 详细的日志输出，显示找到的Python路径
+
+**2. 跨平台依赖管理 (py_engine/requirements.txt)**:
+- 移除Windows专用的 `pywin32` 依赖
+- 保留跨平台兼容的核心依赖: opencv-python, pyautogui, numpy, scipy
+- 添加平台说明注释
+
+**3. 跨平台窗口捕获架构 (py_engine/window_capture.py)**:
+- **平台自动检测**: 根据 `platform.system()` 自动选择实现
+- **模块化设计**: 每个平台有独立的方法实现
+  - `_find_windows_windows()` - Windows窗口枚举
+  - `_find_windows_macos()` - macOS AppleScript窗口查找
+  - `_find_windows_cross_platform()` - 通用实现
+- **优雅降级**: 如果平台特定模块不可用，自动切换到跨平台模式
+- **统一接口**: 对外提供相同的API，内部根据平台调用不同实现
+
+**4. macOS特定实现**:
+- 使用AppleScript获取窗口列表
+- 使用pyautogui进行屏幕截图
+- 使用subprocess调用系统命令
+
+**架构优势**:
+- ✅ **真正的跨平台**: 同一套代码在Windows/macOS/Linux上都能运行
+- ✅ **自动适配**: 无需手动配置，自动检测平台和可用模块
+- ✅ **向后兼容**: Windows上的所有功能保持不变
+- ✅ **易于扩展**: 新增平台支持只需添加对应的实现方法
+- ✅ **错误处理**: 完善的异常处理和日志记录
+
+**测试验证**:
+- ✅ macOS上Python引擎成功启动
+- ✅ 窗口捕获模块正确初始化
+- ✅ Electron与Python通信正常
+- ✅ 所有TypeScript类型检查通过
+- ✅ 保持Windows平台功能完整性
+
+**用户体验改进**:
+- macOS用户现在可以正常使用应用
+- 开发者可以在不同平台上进行开发和测试
+- 统一的错误处理和日志输出
+- 自动的平台适配，无需手动配置
+
+---
+
 ### Issue #13: App.vue模块化重构 - Hook + 组件分离架构
 **需求**:
 - App.vue过于臃肿，包含了多个功能模块的逻辑和视图
@@ -906,9 +966,11 @@ npm run build:win
 ## 🎯 下一步计划 (Next Steps)
 1. ✅ 完成代码review和规范文档
 2. ✅ 完成打包配置和发布流程
-3. 开发 Python 端的图像识别脚本逻辑
-4. 实现脚本执行引擎(目前只有状态管理,还没有实际执行)
-5. 添加更多脚本类型(目前只有火10)
-6. 优化窗口捕获性能
-7. 添加脚本执行统计和报告功能
-8. 实现自动更新功能
+3. ✅ 解决macOS兼容性问题，实现跨平台支持
+4. 开发 Python 端的图像识别脚本逻辑
+5. 实现脚本执行引擎(目前只有状态管理,还没有实际执行)
+6. 添加更多脚本类型(目前只有火10)
+7. 优化窗口捕获性能
+8. 添加脚本执行统计和报告功能
+9. 实现自动更新功能
+10. 完善Linux平台支持
