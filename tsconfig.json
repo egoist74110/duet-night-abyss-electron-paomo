@@ -33,7 +33,8 @@
         "src/**/*.d.ts",
         "src/**/*.tsx",
         "src/**/*.vue",
-        "src/electron-env.d.ts"
+        "src/electron-env.d.ts",
+        "src/vue-shim.d.ts"
     ],
     "references": [
         {
