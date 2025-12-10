@@ -15,8 +15,8 @@ import HotkeyConfig from '@/components/HotkeyConfig.vue'
 import WindowDetection from '@/components/WindowDetection.vue'
 import ScriptSelector from '@/components/ScriptSelector.vue'
 import LogPanel from '@/components/LogPanel.vue'
-import Fire10Config from '@/components/scripts/Fire10Config.vue'
 import WindowCaptureDebug from '@/components/WindowCaptureDebug.vue'
+import {components} from "@/components/hook/components";
 
 // 导入hooks
 import { useWindowDetection } from '@/hooks/useWindowDetection'
@@ -103,7 +103,11 @@ onUnmounted(() => {
         <ScriptSelector />
 
         <!-- 脚本配置面板 - 动态渲染 -->
-        <Fire10Config v-if="store.selectedScript === 'fire10'" v-model="store.scriptConfigs.fire10" />
+        <component 
+          v-if="store.selectedScript && components[store.selectedScript]" 
+          :is="components[store.selectedScript]" 
+          v-model="store.scriptConfigs[store.selectedScript]" 
+        />
 
         <!-- 游戏窗口捕获调试 -->
         <WindowCaptureDebug />

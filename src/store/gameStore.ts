@@ -169,21 +169,24 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // 脚本配置
-  const selectedScript = ref('fire10') // 当前选择的脚本
+  const selectedScript = ref('material-dungeon') // 当前选择的脚本
   const scriptConfigs = ref<Record<string, any>>({
-    fire10: {
+    'material-dungeon': {
       maxRounds: 10,
       timeout: 300,
-      dungeonType: 'default'
+      dungeonSequence: [
+        { material: '火', times: 1 },
+        { material: '水', times: 1 }
+      ]
     }
   })
 
   // 可用脚本列表
   const availableScripts = [
     {
-      id: 'fire10',
-      name: '火10',
-      description: '火10副本自动化脚本',
+      id: 'material-dungeon',
+      name: '角色材料副本',
+      description: '角色材料副本自动化脚本，支持多种材料副本类型和难度选择',
       type: 'dungeon' // 副本类型脚本
     }
     // 未来添加更多脚本

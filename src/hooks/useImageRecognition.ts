@@ -38,39 +38,39 @@ export function useImageRecognition() {
   const dungeonConfigs = ref<Record<string, DungeonConfig>>({
     fire: {
       name: '火',
-      imagePath: 'static/dungeon/火.png',
+      imagePath: 'static/role-dungeon火.png',
       enabled: true
     },
     water: {
       name: '水',
-      imagePath: 'static/dungeon/水.png',
+      imagePath: 'static/role-dungeon水.png',
       enabled: false
     },
     wind: {
       name: '风',
-      imagePath: 'static/dungeon/风.png',
+      imagePath: 'static/role-dungeon风.png',
       enabled: false
     },
     electric: {
       name: '电',
-      imagePath: 'static/dungeon/电.png',
+      imagePath: 'static/role-dungeon电.png',
       enabled: false
     },
     dark: {
       name: '暗',
-      imagePath: 'static/dungeon/暗.png',
+      imagePath: 'static/role-dungeon暗.png',
       enabled: false
     },
     light: {
       name: '光',
-      imagePath: 'static/dungeon/光.png',
+      imagePath: 'static/role-dungeon光.png',
       enabled: false
     }
   })
 
   // 开始挑战按钮配置
   const startChallengeConfig = ref({
-    imagePath: 'static/dungeon/开始挑战.png',
+    imagePath: 'static/role-dungeon开始挑战.png',
     enabled: true
   })
 
