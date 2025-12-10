@@ -196,8 +196,12 @@ function startPythonEngine() {
     // 检查嵌入式Python是否存在
     const fs = require('fs');
     const pythonPath = fs.existsSync(embeddedPythonPath) ? embeddedPythonPath : systemPythonPath;
-    // Fix: __dirname is dist-electron. We need to go up one level to root, then into py_engine.
-    const scriptPath = (0, path_1.join)(__dirname, '../py_engine/main.py');
+    // Python脚本路径
+    // 开发模式: __dirname 是 dist-electron,需要回到根目录再进入 py_engine
+    // 生产模式(打包后): 需要从 resources 目录读取
+    const scriptPath = electron_1.app.isPackaged
+        ? (0, path_1.join)(process.resourcesPath, 'py_engine/main.py')
+        : (0, path_1.join)(__dirname, '../py_engine/main.py');
     console.log(`Using Python: ${pythonPath}`);
     console.log(`Starting Python engine at: ${scriptPath}`);
     // 重置缓冲区

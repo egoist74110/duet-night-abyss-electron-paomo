@@ -1,5 +1,8 @@
 node_modules
-
+release
+dist
+.vscode
+.kiro
 # Embedded Python
 python/
 __pycache__/

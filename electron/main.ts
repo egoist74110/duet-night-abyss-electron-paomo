@@ -226,8 +226,12 @@ function startPythonEngine() {
   const fs = require('fs')
   const pythonPath = fs.existsSync(embeddedPythonPath) ? embeddedPythonPath : systemPythonPath
 
-  // Fix: __dirname is dist-electron. We need to go up one level to root, then into py_engine.
-  const scriptPath = join(__dirname, '../py_engine/main.py')
+  // Python脚本路径
+  // 开发模式: __dirname 是 dist-electron,需要回到根目录再进入 py_engine
+  // 生产模式(打包后): 需要从 resources 目录读取
+  const scriptPath = app.isPackaged
+    ? join(process.resourcesPath, 'py_engine/main.py')
+    : join(__dirname, '../py_engine/main.py')
 
   console.log(`Using Python: ${pythonPath}`)
   console.log(`Starting Python engine at: ${scriptPath}`)

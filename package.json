@@ -3,11 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "main": "dist-electron/main.js",
+  "author": "Your Name",
+  "description": "Duet Night Abyss 游戏自动化辅助工具",
   "scripts": {
     "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && electron .",
     "build": "vue-tsc && vite build && tsc -p electron/tsconfig.json && electron-builder",
+    "build:win": "vue-tsc && vite build && tsc -p electron/tsconfig.json && electron-builder --win --x64",
+    "build:quick": "vite build && tsc -p electron/tsconfig.json && electron-builder",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -26,7 +30,62 @@
     "electron-builder": "^24.13.3",
     "typescript": "^5.3.3",
     "vite": "^5.1.4",
-    "vue-tsc": "^1.8.27",
+    "vue-tsc": "^2.0.0",
     "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.dna.automator",
+    "productName": "DNA Automator",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "py_engine/**/*",
+      "static/**/*",
+      "mods/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DNA Automator",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "perMachine": false,
+      "runAfterFinish": true
+    },
+    "extraResources": [
+      {
+        "from": "py_engine",
+        "to": "py_engine",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "static",
+        "to": "static",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "mods",
+        "to": "mods",
+        "filter": ["**/*"]
+      }
+    ]
   }
 }
