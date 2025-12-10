@@ -23,7 +23,7 @@ export function usePythonData() {
       handleTopmostDeactivated: (data: any) => void
     },
     scriptHandlers: {
-      delayedEnterScriptMode: () => void
+      onWindowConnected: () => void
     }
   ) {
     try {
@@ -37,11 +37,12 @@ export function usePythonData() {
       }
       // 处理窗口连接响应
       else if (data.type === 'window_set') {
-        const shouldEnterScriptMode = windowHandlers.handleWindowSet(data.data)
+        const shouldContinueInitialization = windowHandlers.handleWindowSet(data.data)
         
-        // 如果需要进入脚本模式,延迟执行
-        if (shouldEnterScriptMode) {
-          scriptHandlers.delayedEnterScriptMode()
+        // 如果需要继续脚本初始化流程，调用窗口连接后的处理方法
+        if (shouldContinueInitialization) {
+          console.log('Window connected during initialization, continuing...')
+          scriptHandlers.onWindowConnected()
         }
       }
       // 处理窗口激活响应
@@ -54,7 +55,8 @@ export function usePythonData() {
       }
       // 未知消息类型
       else {
-        message.error('游戏窗口选择失败，请尝试重新选择')
+        console.warn('Unknown Python data type:', data.type, data)
+        // 不再显示错误消息，因为可能有其他类型的数据
       }
     } catch (error) {
       console.error('Error handling Python data:', error, data)

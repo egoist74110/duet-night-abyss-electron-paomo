@@ -26,7 +26,7 @@
           v-model="store.startHotkey" 
           placeholder="点击输入框后按下快捷键 (例如: Ctrl+F1)" 
           readonly
-          @keydown="(e) => handleKeyDown(e, 'start')" 
+          @keydown="(e: KeyboardEvent) => handleKeyDown(e, 'start')" 
           style="cursor: pointer;" 
         />
       </el-form-item>
@@ -36,7 +36,7 @@
           v-model="store.stopHotkey" 
           placeholder="点击输入框后按下快捷键 (例如: Ctrl+F2)" 
           readonly
-          @keydown="(e) => handleKeyDown(e, 'stop')" 
+          @keydown="(e: KeyboardEvent) => handleKeyDown(e, 'stop')" 
           style="cursor: pointer;" 
         />
       </el-form-item>

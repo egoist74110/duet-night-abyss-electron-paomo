@@ -85,8 +85,11 @@ class Message {
       ...options
     })
   }
-  close(){
-    return ElMessage().close()
+  /**
+   * 关闭所有消息
+   */
+  close() {
+    return ElMessage.closeAll()
   }
 }
 

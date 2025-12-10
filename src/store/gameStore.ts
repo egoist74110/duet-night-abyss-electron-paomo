@@ -15,6 +15,21 @@ export const useGameStore = defineStore('game', () => {
   // 脚本运行模式状态 - 表示是否正在监听快捷键并准备运行脚本
   const isScriptMode = ref(false)
 
+  // 脚本初始化状态 - 表示是否正在进行脚本初始化流程
+  const isInitializing = ref(false)
+
+  // 窗口检测状态 - 表示是否正在进行窗口检测
+  const detectingWindow = ref(false)
+
+  // 窗口连接状态 - 表示是否正在连接窗口
+  const connectingWindow = ref(false)
+
+  // 可用窗口列表 - 存储检测到的所有窗口
+  const availableWindows = ref<Array<{ hwnd: number, title: string }>>([])
+
+  // 选中的窗口句柄
+  const selectedWindowHwnd = ref<number | null>(null)
+
   // 计算属性:是否已配置快捷键
   const isHotkeyConfigured = computed(() => {
     return startHotkey.value.trim() !== '' && stopHotkey.value.trim() !== ''
@@ -145,10 +160,64 @@ export const useGameStore = defineStore('game', () => {
     scriptConfigs.value[scriptId] = config
   }
 
-  // 进入脚本运行模式 - 开始监听停止快捷键
-  async function enterScriptMode() {
+  // 开始脚本初始化流程
+  async function startScriptInitialization() {
     if (!isHotkeyConfigured.value) {
       console.warn('Hotkeys not configured')
+      return false
+    }
+    
+    if (isInitializing.value) {
+      console.warn('Script initialization already in progress')
+      return false
+    }
+    
+    console.log('Starting script initialization...')
+    isInitializing.value = true
+    return true
+  }
+
+  // 设置窗口检测状态
+  function setDetectingWindow(detecting: boolean) {
+    console.log(`[STORE] 设置窗口检测状态: ${detectingWindow.value} -> ${detecting}`)
+    detectingWindow.value = detecting
+  }
+
+  // 设置窗口连接状态
+  function setConnectingWindow(connecting: boolean) {
+    console.log(`[STORE] 设置窗口连接状态: ${connectingWindow.value} -> ${connecting}`)
+    connectingWindow.value = connecting
+  }
+
+  // 设置可用窗口列表
+  function setAvailableWindows(windows: Array<{ hwnd: number, title: string }>) {
+    console.log(`[STORE] 设置可用窗口列表: ${availableWindows.value.length} -> ${windows.length}`)
+    console.log(`[STORE] 新窗口列表:`, windows)
+    
+    // 确保完全替换数组内容，触发响应式更新
+    availableWindows.value.splice(0, availableWindows.value.length, ...windows)
+    
+    console.log(`[STORE] 设置完成，当前长度: ${availableWindows.value.length}`)
+    console.log(`[STORE] 当前内容:`, availableWindows.value)
+  }
+
+  // 清空可用窗口列表
+  function clearAvailableWindows() {
+    console.log(`[STORE] 清空可用窗口列表`)
+    // 使用splice确保响应式更新
+    availableWindows.value.splice(0)
+  }
+
+  // 设置选中的窗口句柄
+  function setSelectedWindowHwnd(hwnd: number | null) {
+    console.log(`[STORE] 设置选中窗口: ${selectedWindowHwnd.value} -> ${hwnd}`)
+    selectedWindowHwnd.value = hwnd
+  }
+
+  // 完成脚本初始化并进入脚本运行模式
+  async function completeInitializationAndEnterScriptMode() {
+    if (!isInitializing.value) {
+      console.warn('No initialization in progress')
       return false
     }
     
@@ -156,12 +225,22 @@ export const useGameStore = defineStore('game', () => {
     const success = await window.electronAPI.enterScriptMode(stopHotkey.value)
     
     if (success) {
+      isInitializing.value = false
       isScriptMode.value = true
-      console.log('Entered script mode - now listening for stop hotkey:', stopHotkey.value)
+      console.log('Script initialization completed - now in script mode, listening for stop hotkey:', stopHotkey.value)
       return true
     } else {
       console.error('Failed to register stop hotkey')
+      isInitializing.value = false
       return false
+    }
+  }
+
+  // 取消脚本初始化
+  function cancelScriptInitialization() {
+    if (isInitializing.value) {
+      console.log('Script initialization cancelled')
+      isInitializing.value = false
     }
   }
 
@@ -170,9 +249,11 @@ export const useGameStore = defineStore('game', () => {
     // 通知Electron主进程注销所有快捷键
     await window.electronAPI.exitScriptMode()
     
+    // 重置所有状态
     isScriptMode.value = false
+    isInitializing.value = false
     isRunning.value = false
-    console.log('Exited script mode - stopped all listeners')
+    console.log('Exited script mode - stopped all listeners and reset states')
     
     return true
   }
@@ -190,6 +271,11 @@ export const useGameStore = defineStore('game', () => {
     serverType,
     serverKeyword,
     isScriptMode,
+    isInitializing,
+    detectingWindow,
+    connectingWindow,
+    availableWindows,
+    selectedWindowHwnd,
     selectedScript,
     scriptConfigs,
     availableScripts,
@@ -200,8 +286,15 @@ export const useGameStore = defineStore('game', () => {
     toggleScript,
     startScript,
     stopScript,
-    enterScriptMode,
+    startScriptInitialization,
+    completeInitializationAndEnterScriptMode,
+    cancelScriptInitialization,
     exitScriptMode,
+    setDetectingWindow,
+    setConnectingWindow,
+    setAvailableWindows,
+    clearAvailableWindows,
+    setSelectedWindowHwnd,
     updateScriptConfig,
     ping
   }

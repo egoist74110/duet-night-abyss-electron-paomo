@@ -4,7 +4,7 @@
 -->
 <script setup lang="ts">
 import { ElConfigProvider } from 'element-plus'
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { useGameStore } from '@/store/gameStore'
 
 // 导入模块化组件
@@ -48,7 +48,7 @@ onMounted(async () => {
         handleTopmostDeactivated: windowDetection.handleTopmostDeactivated
       },
       {
-        delayedEnterScriptMode: scriptControl.delayedEnterScriptMode
+        onWindowConnected: scriptControl.onWindowConnected
       }
     )
   })
@@ -57,6 +57,16 @@ onMounted(async () => {
   window.electronAPI.onHotkeyTriggered((action) => {
     scriptControl.handleHotkeyTriggered(action)
   })
+})
+
+/**
+ * 组件卸载时的清理逻辑
+ */
+onUnmounted(() => {
+  console.log('App component unmounting, cleaning up resources...')
+  
+  // 清理窗口检测相关资源
+  windowDetection.cleanup()
 })
 </script>
 

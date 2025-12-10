@@ -7,16 +7,29 @@
     <template #header>
       <div class="card-header">
         <span>控制面板</span>
-        <el-tag v-if="store.isScriptMode" type="success" size="small" style="margin-left: 10px;">
+        <el-tag v-if="store.isInitializing" type="warning" size="small" style="margin-left: 10px;">
+          初始化中
+        </el-tag>
+        <el-tag v-else-if="store.isScriptMode" type="success" size="small" style="margin-left: 10px;">
           脚本运行模式
+        </el-tag>
+        <el-tag v-else type="info" size="small" style="margin-left: 10px;">
+          空闲状态
         </el-tag>
       </div>
     </template>
 
-    <!-- 脚本运行模式提示 -->
+    <!-- 状态提示 -->
     <el-alert 
-      v-if="store.isScriptMode" 
-      title="当前处于脚本运行模式,按下停止快捷键可停止脚本并退出此模式" 
+      v-if="store.isInitializing" 
+      title="正在进行脚本初始化流程，请稍候..." 
+      type="warning" 
+      :closable="false"
+      style="margin-bottom: 20px;" 
+    />
+    <el-alert 
+      v-else-if="store.isScriptMode" 
+      title="当前处于脚本运行模式，按下停止快捷键可停止脚本并退出此模式" 
       type="success" 
       :closable="false"
       style="margin-bottom: 20px;" 
@@ -25,7 +38,7 @@
     <!-- 控制按钮 -->
     <el-space>
       <el-button 
-        v-if="!store.isScriptMode" 
+        v-if="!store.isScriptMode && !store.isInitializing" 
         type="primary" 
         size="large" 
         :disabled="!store.isHotkeyConfigured"
@@ -34,22 +47,34 @@
         脚本，启动！
       </el-button>
       <el-button 
+        v-else-if="store.isInitializing" 
+        type="warning" 
+        size="large" 
+        :loading="true"
+        @click="handleStopListening"
+      >
+        取消初始化
+      </el-button>
+      <el-button 
         v-else 
         type="danger" 
         size="large" 
         @click="handleStopListening"
       >
-        停止监听
+        停止脚本
       </el-button>
     </el-space>
 
     <!-- 控制提示信息 -->
     <div class="control-tip">
-      <p v-if="!store.isScriptMode">
-        点击"启动"后,将进入脚本运行模式,此时可以按停止快捷键来停止脚本
+      <p v-if="!store.isScriptMode && !store.isInitializing">
+        点击"脚本，启动！"后，将开始初始化流程：检测窗口 → 置顶窗口 → 进入脚本运行模式
+      </p>
+      <p v-else-if="store.isInitializing">
+        正在进行脚本初始化，包括窗口检测、窗口置顶等步骤...
       </p>
       <p v-else>
-        当前正在监听停止快捷键: <strong>{{ store.stopHotkey }}</strong>
+        脚本运行模式已激活，正在监听停止快捷键: <strong>{{ store.stopHotkey }}</strong>
       </p>
     </div>
   </el-card>

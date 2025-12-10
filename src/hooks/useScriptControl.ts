@@ -2,7 +2,8 @@
  * 脚本控制相关的Hook
  * 负责脚本的启动、停止和运行模式管理
  */
-import { ref } from 'vue'
+// 导入Vue相关依赖 - 当前不需要ref，但保留以备将来使用
+// import { ref } from 'vue'
 import { useGameStore } from '@/store/gameStore'
 import { message } from '@/utils/message'
 
@@ -31,7 +32,8 @@ export function useScriptControl() {
   }
 
   /**
-   * 开始监听 - 进入脚本运行模式
+   * 开始脚本初始化流程
+   * 这是整个脚本启动的入口点，会统一管理窗口检测和脚本启动的状态
    * @param gameWindowConnected 游戏窗口是否已连接
    * @param autoDetectGameWindow 自动检测窗口的函数
    * @param setPendingStartScript 设置待启动脚本标志的函数
@@ -46,13 +48,24 @@ export function useScriptControl() {
       return
     }
 
+    // 开始脚本初始化流程
+    const initStarted = await store.startScriptInitialization()
+    if (!initStarted) {
+      return
+    }
+
+    message.info('开始脚本初始化流程...')
+
     // 1. 检查窗口是否连接
     if (!gameWindowConnected) {
       // 如果窗口未连接,自动检测并连接
-      message.info('正在自动检测游戏窗口...')
-      console.log('Window not connected, auto-detecting...')
+      console.log('Step 1/3: 窗口未连接，开始自动检测游戏窗口...')
+      message.info('步骤 1/3: 正在自动检测游戏窗口...')
 
-      // 设置标志位,表示检测完成后需要进入脚本模式
+      // 设置窗口检测状态为true（这是用户点击"脚本，启动！"按钮时的状态设置）
+      store.setDetectingWindow(true)
+
+      // 设置标志位,表示检测完成后需要继续初始化流程
       setPendingStartScript(true)
 
       // 执行自动检测
@@ -60,37 +73,68 @@ export function useScriptControl() {
       return
     }
 
+    // 2. 窗口已连接，继续初始化流程
+    await continueInitializationAfterWindowConnected()
+  }
+
+  /**
+   * 窗口连接后继续初始化流程
+   * 这个方法会在窗口检测完成后被调用
+   */
+  async function continueInitializationAfterWindowConnected() {
+    if (!store.isInitializing) {
+      console.log('No initialization in progress, skipping...')
+      return
+    }
+
+    console.log('Step 2/3: 窗口已连接，开始置顶游戏窗口...')
+    message.info('步骤 2/3: 正在置顶游戏窗口...')
+
     // 2. 激活窗口（置顶）
-    console.log('Activating window before entering script mode...')
     window.electronAPI.sendToPython({
       action: 'activate_window'
     })
 
-    // 3. 进入脚本运行模式
+    // 3. 等待置顶完成后，进入脚本运行模式
     setTimeout(async () => {
-      const success = await store.enterScriptMode()
+      console.log('Step 3/3: 窗口置顶完成，进入脚本运行模式...')
+      message.info('步骤 3/3: 正在进入脚本运行模式...')
+
+      const success = await store.completeInitializationAndEnterScriptMode()
       if (success) {
-        message.success('已进入脚本运行模式,现在可以按停止快捷键来停止脚本')
+        message.success('✅ 脚本初始化完成！现在可以按停止快捷键来停止脚本')
       } else {
-        message.error('进入脚本运行模式失败,请检查快捷键配置')
+        message.error('❌ 进入脚本运行模式失败，请检查快捷键配置')
       }
     }, 500)
   }
 
   /**
-   * 停止监听 - 退出脚本运行模式
+   * 停止监听 - 退出脚本运行模式或取消初始化
    */
   async function handleStopListening() {
-    // 1. 取消窗口置顶
-    console.log('Deactivating window topmost...')
-    window.electronAPI.sendToPython({
-      action: 'deactivate_topmost'
-    })
+    if (store.isInitializing) {
+      // 如果正在初始化中，取消初始化
+      console.log('Cancelling script initialization...')
+      store.cancelScriptInitialization()
+      message.info('已取消脚本初始化')
+      return
+    }
 
-    // 2. 退出脚本运行模式
-    await store.exitScriptMode()
+    if (store.isScriptMode) {
+      // 如果在脚本运行模式，正常退出
+      console.log('Exiting script mode...')
+      
+      // 1. 取消窗口置顶
+      window.electronAPI.sendToPython({
+        action: 'deactivate_topmost'
+      })
 
-    message.info('已退出脚本运行模式,窗口置顶已取消')
+      // 2. 退出脚本运行模式
+      await store.exitScriptMode()
+
+      message.info('已退出脚本运行模式，窗口置顶已取消')
+    }
   }
 
   /**
@@ -113,13 +157,12 @@ export function useScriptControl() {
   }
 
   /**
-   * 延迟进入脚本模式(用于窗口连接后自动进入)
+   * 窗口连接完成后继续初始化流程
+   * 这个方法会被窗口检测模块调用，当窗口成功连接后继续脚本初始化
    */
-  async function delayedEnterScriptMode() {
-    // 延迟一下再进入脚本模式,确保窗口连接完成
-    setTimeout(() => {
-      handleStartListening(true, () => {}, () => {})
-    }, 300)
+  async function onWindowConnected() {
+    // 继续初始化流程
+    await continueInitializationAfterWindowConnected()
   }
 
   return {
@@ -128,6 +171,7 @@ export function useScriptControl() {
     handleStartListening,
     handleStopListening,
     handleHotkeyTriggered,
-    delayedEnterScriptMode
+    onWindowConnected,
+    continueInitializationAfterWindowConnected
   }
 }

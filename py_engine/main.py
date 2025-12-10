@@ -159,14 +159,25 @@ def handle_command(cmd):
         elif action == 'detect_window':
             # 检测游戏窗口
             keyword = cmd.get('keyword', '')
-            log(f"Detecting windows with keyword: '{keyword}'", "INFO")
+            log(f"开始检测窗口，关键词: '{keyword}'", "INFO")
             
             try:
+                # 记录开始时间
+                import time
+                start_time = time.time()
+                
                 windows = window_capture.find_windows(keyword)
+                
+                # 记录结束时间
+                end_time = time.time()
+                duration = end_time - start_time
+                log(f"窗口检测完成，耗时: {duration:.2f}秒", "INFO")
                 
                 if windows:
                     # 返回找到的窗口列表
                     window_list = [{'hwnd': hwnd, 'title': title} for hwnd, title in windows]
+                    
+                    log(f"准备发送窗口列表: {len(window_list)} 个窗口", "INFO")
                     send_response({
                         'type': 'windows_found',
                         'data': {
@@ -174,8 +185,9 @@ def handle_command(cmd):
                             'count': len(window_list)
                         }
                     })
-                    log(f"Found {len(window_list)} window(s)", "INFO")
+                    log(f"已发送窗口列表到前端", "INFO")
                 else:
+                    log("未找到任何窗口", "WARN")
                     send_response({
                         'type': 'windows_found',
                         'data': {
@@ -183,9 +195,11 @@ def handle_command(cmd):
                             'count': 0
                         }
                     })
-                    log("No windows found", "WARN")
+                    log("已发送空窗口列表到前端", "INFO")
             except Exception as e:
-                log(f"Error detecting windows: {str(e)}", "ERROR")
+                log(f"窗口检测异常: {str(e)}", "ERROR")
+                import traceback
+                log(f"异常详情: {traceback.format_exc()}", "ERROR")
                 send_response({
                     'type': 'windows_found',
                     'data': {
@@ -194,6 +208,7 @@ def handle_command(cmd):
                         'error': str(e)
                     }
                 })
+                log("已发送错误响应到前端", "ERROR")
         
         elif action == 'set_window':
             # 设置要捕获的窗口

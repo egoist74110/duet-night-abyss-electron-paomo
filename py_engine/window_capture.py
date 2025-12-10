@@ -82,38 +82,110 @@ class WindowCapture:
     def _find_windows_macos(self, keyword=""):
         """macOS平台窗口查找"""
         try:
-            # 使用AppleScript获取窗口列表
+            print(f"[INFO] macOS窗口检测开始，搜索关键词: '{keyword}'")
+            
+            # 改进的AppleScript，返回更易解析的格式
             script = '''
             tell application "System Events"
                 set windowList to {}
+                set processCount to 0
+                set windowCount to 0
+                
                 repeat with proc in (every process whose background only is false)
+                    set processCount to processCount + 1
                     try
                         repeat with win in (every window of proc)
-                            set windowList to windowList & {name of win as string}
+                            set windowCount to windowCount + 1
+                            set windowName to name of win as string
+                            if windowName is not "" then
+                                set windowList to windowList & {windowName}
+                            end if
                         end repeat
+                    on error
+                        -- 忽略无法访问的进程
                     end try
                 end repeat
-                return windowList
+                
+                -- 返回统计信息和窗口列表
+                set AppleScript's text item delimiters to "|||"
+                set windowListString to windowList as string
+                set AppleScript's text item delimiters to ""
+                
+                return "STATS:" & processCount & ":" & windowCount & "|||" & windowListString
             end tell
             '''
             
+            print("[INFO] 执行AppleScript获取窗口列表...")
             result = subprocess.run(['osascript', '-e', script], 
-                                  capture_output=True, text=True)
+                                  capture_output=True, text=True, timeout=10)
+            
+            print(f"[DEBUG] AppleScript返回码: {result.returncode}")
+            print(f"[DEBUG] AppleScript输出: {result.stdout[:200]}...")  # 只显示前200字符
+            if result.stderr:
+                print(f"[DEBUG] AppleScript错误: {result.stderr}")
             
             if result.returncode == 0:
-                window_titles = result.stdout.strip().split(', ')
+                output = result.stdout.strip()
+                
+                # 解析统计信息和窗口列表
+                if output.startswith("STATS:"):
+                    parts = output.split("|||", 1)
+                    stats_part = parts[0]
+                    window_part = parts[1] if len(parts) > 1 else ""
+                    
+                    # 解析统计信息
+                    stats = stats_part.replace("STATS:", "").split(":")
+                    process_count = int(stats[0]) if len(stats) > 0 else 0
+                    window_count = int(stats[1]) if len(stats) > 1 else 0
+                    
+                    print(f"[INFO] 扫描了 {process_count} 个进程，找到 {window_count} 个窗口")
+                    
+                    # 解析窗口列表
+                    if window_part:
+                        window_titles = window_part.split("|||")
+                        print(f"[DEBUG] 解析到 {len(window_titles)} 个窗口标题")
+                    else:
+                        window_titles = []
+                        print("[DEBUG] 没有窗口标题数据")
+                else:
+                    # 兼容旧格式
+                    window_titles = output.split(", ") if output else []
+                    print(f"[DEBUG] 使用兼容模式解析，得到 {len(window_titles)} 个窗口")
+                
+                # 过滤和匹配窗口
                 windows = []
+                matched_count = 0
+                
                 for i, title in enumerate(window_titles):
-                    if title and (not keyword or keyword.lower() in title.lower()):
-                        # 在macOS上，我们使用索引作为"句柄"
-                        windows.append((i, title))
+                    title = title.strip()
+                    if title and title != "":
+                        if not keyword or keyword.lower() in title.lower():
+                            windows.append((i, title))
+                            matched_count += 1
+                            print(f"[MATCH] 窗口 {i}: {title}")
+                        else:
+                            print(f"[SKIP] 窗口 {i}: {title}")
+                
+                print(f"[INFO] 匹配到 {matched_count} 个符合条件的窗口")
                 return windows
             else:
-                print(f"[ERROR] AppleScript failed: {result.stderr}")
+                error_msg = result.stderr.strip() if result.stderr else "未知错误"
+                print(f"[ERROR] AppleScript执行失败 (返回码 {result.returncode}): {error_msg}")
+                
+                # 检查是否是权限问题
+                if "not allowed assistive access" in error_msg.lower() or "accessibility" in error_msg.lower():
+                    print("[ERROR] 需要辅助功能权限！")
+                    print("[HELP] 请在 系统偏好设置 > 安全性与隐私 > 隐私 > 辅助功能 中添加此应用")
+                
                 return []
                 
+        except subprocess.TimeoutExpired:
+            print("[ERROR] AppleScript执行超时")
+            return []
         except Exception as e:
-            print(f"[ERROR] macOS window enumeration failed: {e}")
+            print(f"[ERROR] macOS窗口枚举异常: {e}")
+            import traceback
+            print(f"[DEBUG] 异常详情: {traceback.format_exc()}")
             return []
     
     def _find_windows_cross_platform(self, keyword=""):
@@ -153,16 +225,25 @@ class WindowCapture:
     def _set_window_macos(self, hwnd):
         """macOS平台设置窗口"""
         try:
+            print(f"[INFO] macOS设置窗口，索引: {hwnd}")
+            
             # 在macOS上，hwnd实际上是窗口索引
             # 我们需要重新获取窗口列表来找到对应的窗口
             windows = self._find_windows_macos("")
+            print(f"[DEBUG] 重新获取窗口列表，共 {len(windows)} 个窗口")
+            
             if 0 <= hwnd < len(windows):
                 self.hwnd = hwnd
                 self.window_title = windows[hwnd][1]
-                print(f"[INFO] macOS window set: {self.window_title}")
+                print(f"[OK] macOS窗口设置成功: {self.window_title}")
                 return True
+            else:
+                print(f"[ERROR] 窗口索引 {hwnd} 超出范围 (0-{len(windows)-1})")
+                return False
         except Exception as e:
-            print(f"macOS设置窗口失败: {e}")
+            print(f"[ERROR] macOS设置窗口失败: {e}")
+            import traceback
+            print(f"[DEBUG] 异常详情: {traceback.format_exc()}")
         return False
     
     def _set_window_cross_platform(self, hwnd):

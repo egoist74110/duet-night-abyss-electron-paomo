@@ -676,6 +676,183 @@ message.show('warning', '警告信息')
 
 ---
 
+### Issue #15: 脚本初始化状态机重构 - 统一窗口检测和脚本启动流程
+**需求**:
+- 游戏窗口检测模块和脚本启动模块应该统一管理状态
+- 整套初始化启动流程应该是一个完整的状态机
+- 点击"脚本，启动！" → 初始化阶段 → 获取窗口 → 设置游戏窗口 → 置顶窗口 → 脚本运行模式
+
+**问题分析**:
+1. 原来的设计中，窗口检测和脚本启动是两个独立的模块，各自管理状态
+2. 用户点击启动按钮后，如果窗口未连接，需要先检测窗口，然后再进入脚本模式
+3. 这个流程缺乏统一的状态管理，容易出现状态不一致的问题
+
+**解决方案**:
+
+**1. 新增脚本初始化状态 (src/store/gameStore.ts)**:
+```typescript
+// 脚本初始化状态 - 表示是否正在进行脚本初始化流程
+const isInitializing = ref(false)
+
+// 开始脚本初始化流程
+async function startScriptInitialization()
+
+// 完成脚本初始化并进入脚本运行模式  
+async function completeInitializationAndEnterScriptMode()
+
+// 取消脚本初始化
+function cancelScriptInitialization()
+```
+
+**2. 状态机设计**:
+```
+[空闲状态] 
+    ↓ 点击"脚本，启动！"
+[初始化中] - 获取窗口 → 设置游戏窗口 → 置顶窗口
+    ↓ 初始化完成
+[脚本运行模式] - 监听停止快捷键
+    ↓ 按停止快捷键或点击停止
+[空闲状态] - 取消置顶，重置所有状态
+```
+
+**3. 脚本控制流程重构 (src/hooks/useScriptControl.ts)**:
+- `handleStartListening()`: 开始脚本初始化流程，如果窗口未连接则自动检测
+- `continueInitializationAfterWindowConnected()`: 窗口连接后继续初始化流程
+- `onWindowConnected()`: 窗口连接完成的回调，继续初始化
+- `handleStopListening()`: 根据当前状态决定是取消初始化还是退出脚本模式
+
+**4. 控制面板UI更新 (src/components/ControlPanel.vue)**:
+- 显示三种状态标签：空闲状态、初始化中、脚本运行模式
+- 按钮文本根据状态动态变化：脚本启动！、取消初始化、停止脚本
+- 提示信息显示当前流程步骤和状态说明
+
+**5. 窗口检测模块协同 (src/hooks/useWindowDetection.ts)**:
+- `handleWindowSet()`: 窗口连接成功后，如果处于初始化流程则返回true
+- 与脚本控制模块协同工作，确保初始化流程的连续性
+
+**用户体验改进**:
+- ✅ **流程清晰**: 用户可以清楚看到当前处于哪个阶段
+- ✅ **状态一致**: 窗口检测和脚本启动使用统一的状态管理
+- ✅ **可中断**: 初始化过程中可以随时取消
+- ✅ **自动化**: 点击启动后自动完成整个初始化流程
+- ✅ **错误处理**: 任何步骤失败都会正确重置状态
+
+**技术优势**:
+- 使用状态机模式，逻辑清晰易维护
+- Hook模块化设计，职责分离
+- 完整的错误处理和状态重置
+- 符合Vue 3 Composition API最佳实践
+
+**测试验证**:
+- ✅ 所有TypeScript类型检查通过
+- ✅ 状态转换逻辑正确
+- ✅ UI显示与状态同步
+- ✅ 错误情况下状态正确重置
+
+**错误处理改进**:
+- ✅ 窗口检测失败时自动取消初始化状态
+- ✅ 未找到游戏窗口时回到空闲状态
+- ✅ 找到窗口但都不是游戏窗口时取消初始化
+- ✅ 找到的都是应用程序本身时取消初始化
+- ✅ 窗口检测超时机制（10秒自动重置）
+- ✅ Python后端通信异常处理
+- ✅ 组件卸载时资源清理
+
+---
+
+### Issue #16: 窗口检测按钮异常处理机制
+**问题描述**:
+- 窗口检测组件中的"自动检测窗口"和"手动检测窗口"按钮缺少异常处理
+- 当Python后端出错、通信失败或超时时，按钮一直显示"检测中..."状态
+- 用户无法重新尝试检测，必须刷新页面才能恢复
+
+**根本原因**:
+1. 只在成功收到`windows_found`响应时才重置`detectingWindow`状态
+2. 缺少超时机制和异常处理
+3. 没有清理定时器的逻辑
+
+**解决方案**:
+
+**1. 添加超时机制 (src/hooks/useWindowDetection.ts)**:
+```typescript
+// 10秒超时检测
+function startDetectTimeout() {
+  detectTimeoutId = setTimeout(() => {
+    console.warn('Window detection timeout after 10 seconds')
+    message.error('窗口检测超时，请检查Python后端是否正常运行')
+    resetDetectingState()
+    
+    // 如果是在初始化过程中，取消初始化
+    if (pendingStartScript.value) {
+      pendingStartScript.value = false
+      store.cancelScriptInitialization()
+    }
+  }, 10000)
+}
+```
+
+**2. 异常处理机制**:
+```typescript
+function detectGameWindow() {
+  try {
+    window.electronAPI.sendToPython({
+      action: 'detect_window',
+      keyword: ''
+    })
+  } catch (error) {
+    console.error('Failed to send detect_window command:', error)
+    message.error('发送窗口检测命令失败')
+    resetDetectingState()
+  }
+}
+```
+
+**3. 状态重置和资源清理**:
+```typescript
+function resetDetectingState() {
+  if (detectTimeoutId) {
+    clearTimeout(detectTimeoutId)
+    detectTimeoutId = null
+  }
+  detectingWindow.value = false
+}
+
+function cleanup() {
+  if (detectTimeoutId) {
+    clearTimeout(detectTimeoutId)
+    detectTimeoutId = null
+  }
+}
+```
+
+**4. 组件生命周期管理 (src/App.vue)**:
+```typescript
+onUnmounted(() => {
+  windowDetection.cleanup()
+})
+```
+
+**用户体验改进**:
+- ✅ **超时保护**: 10秒内没有响应自动重置状态
+- ✅ **异常处理**: 命令发送失败时立即重置状态
+- ✅ **资源清理**: 组件卸载时清理所有定时器
+- ✅ **状态一致**: 任何异常情况都能正确恢复到可操作状态
+- ✅ **用户反馈**: 详细的错误提示说明失败原因
+
+**技术优势**:
+- 使用定时器实现超时机制
+- 完整的try-catch异常处理
+- 资源清理防止内存泄漏
+- 状态机逻辑健壮性增强
+
+**测试场景**:
+1. **正常场景**: 检测成功 → 显示窗口列表 → 重置状态
+2. **超时场景**: 10秒无响应 → 显示超时错误 → 重置状态
+3. **通信异常**: 命令发送失败 → 显示错误 → 立即重置状态
+4. **组件卸载**: 清理所有定时器 → 防止内存泄漏
+
+---
+
 ### Issue #13: App.vue模块化重构 - Hook + 组件分离架构
 **需求**:
 - App.vue过于臃肿，包含了多个功能模块的逻辑和视图
@@ -902,6 +1079,74 @@ watch(() => store.serverType, async (newType) => {
 - ✅ 服务器类型切换时自动保存
 - ✅ 重启应用后服务器类型保持不变
 - ✅ bat脚本中文显示正常
+
+### Issue #17: Vue3响应式作用域问题修复 - connectingWindow状态管理重构
+**问题描述**:
+- `connectingWindow`状态在某些情况下响应式失效
+- 点击"连接到窗口"后状态变为`true`，但后端返回响应时虽然控制台显示状态已修改，但界面不更新
+- watch监听器只能监听到手动修改，无法监听到后端响应时的修改
+
+**根本原因**:
+这是一个典型的Vue3响应式作用域问题：
+
+1. **响应式链条断裂**: `connectingWindow`在`useWindowDetection` Hook中定义，但`handleWindowSet`函数通过`usePythonData`调用时丢失了原始响应式作用域
+2. **调用链问题**: 
+   ```
+   App.vue → usePythonData.handlePythonData() → windowHandlers.handleWindowSet() 
+   → useWindowDetection.handleWindowSet() → connectingWindow.value = false
+   ```
+   在这个调用链中，响应式上下文在跨Hook传递时丢失
+
+3. **作用域隔离**: 不同Hook之间的响应式状态传递存在作用域隔离问题
+
+**解决方案**:
+
+**1. 状态统一管理**: 将`connectingWindow`从Hook移动到Store中统一管理
+```typescript
+// src/store/gameStore.ts
+const connectingWindow = ref(false)
+
+function setConnectingWindow(connecting: boolean) {
+  console.log(`[STORE] 设置窗口连接状态: ${connectingWindow.value} -> ${connecting}`)
+  connectingWindow.value = connecting
+}
+```
+
+**2. Hook重构**: 移除Hook中的`connectingWindow`定义，改用Store方法
+```typescript
+// src/hooks/useWindowDetection.ts
+// 移除: const connectingWindow = ref(false)
+// 改用: store.setConnectingWindow(true/false)
+```
+
+**3. 组件响应式绑定**: 使用`storeToRefs`确保响应式传递
+```typescript
+// src/components/WindowDetection.vue
+const { detectingWindow, connectingWindow, availableWindows, selectedWindowHwnd } = storeToRefs(store)
+```
+
+**技术原理**:
+- **Store作为单一数据源**: 所有状态都在Store中管理，避免跨Hook的响应式传递问题
+- **storeToRefs确保响应式**: Pinia的`storeToRefs`专门用于解构Store状态并保持响应式
+- **统一的状态修改接口**: 通过Store方法修改状态，确保所有地方的修改都能被正确监听
+
+**用户体验改进**:
+- ✅ `connectingWindow`状态现在在任何情况下都能正确响应
+- ✅ 按钮的loading状态与实际连接状态完全同步
+- ✅ watch监听器能正确监听到所有状态变化
+- ✅ 测试组件可以正确测试连接状态的响应式
+
+**架构优势**:
+- 响应式状态集中管理，避免作用域问题
+- 状态修改路径清晰，便于调试和维护
+- 符合Vue 3 + Pinia的最佳实践
+- 为后续功能扩展提供了稳定的状态管理基础
+
+**测试验证**:
+- ✅ 所有TypeScript类型检查通过
+- ✅ 响应式测试组件验证状态更新正常
+- ✅ 实际窗口连接功能响应式正常
+- ✅ watch监听器能正确捕获所有状态变化
 
 ---
 

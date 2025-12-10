@@ -49,7 +49,6 @@
           自动检测:根据服务器类型自动搜索并连接 | 手动检测:显示所有窗口
         </div>
       </el-form-item>
-
       <!-- 窗口选择列表 -->
       <el-form-item v-if="availableWindows.length > 0" label="选择窗口">
         <el-select 
@@ -73,8 +72,9 @@
           type="success" 
           @click="connectToWindow" 
           :disabled="!selectedWindowHwnd"
+          :loading="connectingWindow"
         >
-          连接到窗口
+          {{ connectingWindow ? '连接中...' : '连接到窗口' }}
         </el-button>
       </el-form-item>
 
@@ -97,6 +97,8 @@
 </template>
 
 <script setup lang="ts">
+import { watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useGameStore } from '@/store/gameStore'
 import { useWindowDetection } from '@/hooks/useWindowDetection'
 import { useHotkeyConfig } from '@/hooks/useHotkeyConfig'
@@ -105,9 +107,6 @@ import { useHotkeyConfig } from '@/hooks/useHotkeyConfig'
 const store = useGameStore()
 const { handleServerTypeChange } = useHotkeyConfig()
 const {
-  detectingWindow,
-  availableWindows,
-  selectedWindowHwnd,
   windowStatus,
   detectGameWindow,
   autoDetectGameWindow,
@@ -116,6 +115,17 @@ const {
   deactivateTopmost,
   setPendingStartScript
 } = useWindowDetection()
+
+// 使用storeToRefs解构响应式状态
+const { detectingWindow, connectingWindow, availableWindows, selectedWindowHwnd } = storeToRefs(store)
+
+// 添加对availableWindows的监听，用于调试
+watch(connectingWindow, (newValue, oldValue) => {
+  console.log('[COMPONENT] connectingWindow 发生变化:')
+  console.log('[COMPONENT] 旧值:', oldValue)
+  console.log('[COMPONENT] 新值:', newValue)
+  console.log('[COMPONENT] 新值长度:', connectingWindow.value)
+}, { deep: true })
 
 // 暴露给父组件使用的方法
 defineExpose({
